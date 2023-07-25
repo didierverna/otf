@@ -46,7 +46,8 @@
     :nickname-package
 
     ;; From src/util.lisp:
-    :tfm :tfm-warning :tfm-error
+    :otf :otf-warning :otf-error :otf-compliance
+    :otf-compliance-warning :otf-compliance-error
 
     ;; From src/file.lisp:
     :load-font :cancel-loading))
