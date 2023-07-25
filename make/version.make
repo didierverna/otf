@@ -1,0 +1,3 @@
+LONG_VERSION    := 1.0 alpha 0 "QT Artiston"
+SHORT_VERSION   := 1.0a0
+COPYRIGHT_YEARS := 2023
