@@ -50,6 +50,7 @@
     :otf-compliance-warning :otf-compliance-error
 
     ;; From src/file.lisp:
+    :invalid-file-header
     :load-font :cancel-loading))
 
 

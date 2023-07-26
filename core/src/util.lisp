@@ -81,4 +81,18 @@ This is the root condition for errors related to OTF compliance."))
       (setf (aref format-string 0) (char-upcase (aref format-string 0)))))
   (apply #'format stream format-string format-arguments))
 
+
+;; ----------------
+;; Numerical values
+;; ----------------
+
+(defun read-u32 ()
+  "Read an unsigned 32 bits Big Endian integer from *STREAM*."
+  (let ((u32 0))
+    (setf (ldb (byte 8 24) u32) (read-byte *stream*)
+	  (ldb (byte 8 16) u32) (read-byte *stream*)
+	  (ldb (byte 8  8) u32) (read-byte *stream*)
+	  (ldb (byte 8  0) u32) (read-byte *stream*))
+    u32))
+
 ;;; util.lisp ends here

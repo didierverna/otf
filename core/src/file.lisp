@@ -30,6 +30,23 @@
 
 
 ;; ==========================================================================
+;; Header
+;; ==========================================================================
+
+(define-condition invalid-file-header (otf-compliance-error)
+  ((header
+    :documentation "The file header."
+    :initarg :header
+    :accessor header))
+  (:report (lambda (invalid-file-header stream)
+	     (report stream "0x~X is not a valid OTF file header."
+	       (header invalid-file-header))))
+  (:documentation "The Invalid File Header compliance error.
+It signals that a file header is not a valid OTF one."))
+
+
+
+;; ==========================================================================
 ;; Entry Point
 ;; ==========================================================================
 
@@ -41,6 +58,14 @@ CANCEL-LOADING, in which case this function simply returns NIL."
   (with-open-file
       (*stream* file :direction :input :element-type '(unsigned-byte 8))
     (with-simple-restart (cancel-loading "Cancel loading this font.")
-      t)))
+      (let ((header (read-u32)))
+	(cond ((= header #x00010000)
+	       (load-tt-font))
+	      ((= header #x4f54544f) ;; OTTO
+	       (load-cff-font))
+	      ((= header #x74746366) ;; ttcf
+	       (load-font-collection))
+	      (t
+	       (error 'invalid-file-header :header header)))))))
 
 ;;; file.lisp ends here
