@@ -42,7 +42,19 @@
     :documentation "The file from which the font was loaded, or NIL."
     :initform nil
     :initarg :file
-    :accessor file))
+    :accessor file)
+   (tables-number
+    :documentation "This font's number of tables."
+    :accessor tables-number)
+   (search-range
+    :documentation "This font's search range."
+    :accessor search-range)
+   (entry-selector
+    :documentation "This font's entry selector."
+    :accessor entry-selector)
+   (range-shift
+    :documentation "This font's range shift."
+    :accessor range-shift))
   (:documentation "The Open Type Font class.
 This class represents decoded font information. Within the context of this
 library, the term \"font\" denotes an instance of this class, or of one of its

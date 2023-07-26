@@ -81,10 +81,63 @@ data."))
 ;; Entry Point
 ;; ==========================================================================
 
+(define-condition invalid-value (otf-compliance-error)
+  ((kind
+    :documentation "The kind of invalid value."
+    :initarg :kind
+    :reader kind)
+   (provided
+    :documentation "The provided invalid value."
+    :initarg :provided
+    :reader provided)
+   (inferred
+    :documentation "The inferred correct value."
+    :initarg :inferred
+    :reader inferred))
+  (:report (lambda (invalid-value stream)
+	     (report stream "Invalid '~A' value: ~S. Should be ~S."
+		     (kind invalid-value)
+		     (provided invalid-value)
+		     (inferred invalid-value))))
+  (:documentation "The Invalid Value compliance error.
+It signals that a provided value in OTF data is invalid."))
+
 (defun load-tt-data
   (&key (file (when (typep *stream* 'file-stream) (pathname *stream*)))
    &aux (font (make-font :file file)))
-  "Load OTF TrueType outlines data from *STREAM* into a new font and return it."
+  "Load OTF TrueType outlines data from *STREAM* into a new font.
+
+If any of the searchRange, entrySelector, or rangeShift values are invalid,
+signal an INVALID-VALUE error. This error is immediately restartable with
+FIX."
+  (setf (tables-number font) (read-u16))
+  (setf (search-range font) (read-u16))
+  (let ((inferred (* 16 (expt 2 (floor (log (tables-number font) 2))))))
+    (unless (= (search-range font) inferred)
+      (restart-case (error 'invalid-value
+			   :kind "searchRange"
+			   :provided (search-range font)
+			   :inferred inferred)
+	(fix () :report "Update to the correct value."
+	  (setf (search-range font) inferred)))))
+  (setf (entry-selector font) (read-u16))
+  (let ((inferred (floor (log (tables-number font) 2))))
+    (unless (= (entry-selector font) inferred)
+      (restart-case (error 'invalid-value
+			   :kind "entrySelector"
+			   :provided (entry-selector font)
+			   :inferred inferred)
+	(fix () :report "Update to the correct value."
+	  (setf (entry-selector font) inferred)))))
+  (setf (range-shift font) (read-u16))
+  (let ((inferred (- (* (tables-number font) 16) (search-range font))))
+    (unless (= (range-shift font) inferred)
+      (restart-case (error 'invalid-value
+			   :kind "rangeShift"
+			   :provided (range-shift font)
+			   :inferred inferred)
+	(fix () :report "Update to the correct value."
+	  (setf (range-shift font) inferred)))))
   font)
 
 
