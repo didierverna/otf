@@ -46,7 +46,7 @@ For a more complete description of OTF, see the `net.didierverna.otf' system."
 		:components ((:file "util")
 			     ;(:file "intermediate")
 			     ;(:file "character")
-			     ;(:file "font")
+			     (:file "font")
 			     (:file "file")))))
 
 ;;; net.didierverna.otf.core.asd ends here

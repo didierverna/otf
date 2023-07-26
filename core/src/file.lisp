@@ -81,6 +81,18 @@ data."))
 ;; Entry Point
 ;; ==========================================================================
 
+(defun load-tt-data
+  (&key (file (when (typep *stream* 'file-stream) (pathname *stream*)))
+   &aux (font (make-font :file file)))
+  "Load OTF TrueType outlines data from *STREAM* into a new font and return it."
+  font)
+
+
+
+;; ==========================================================================
+;; Entry Point
+;; ==========================================================================
+
 (defun load-data (&aux (from-file-p (typep *stream* 'file-stream))
 		       (extension (when from-file-p
 				    (pathname-type (pathname *stream*)))))

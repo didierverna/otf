@@ -95,6 +95,13 @@ This is the root condition for errors related to OTF compliance."))
 	  (ldb (byte 8  0) u32) (read-byte *stream*))
     u32))
 
+(defun read-u16 ()
+  "Read an unsigned 16 bits Big Endian integer from *STREAM*."
+  (let ((u16 0))
+    (setf (ldb (byte 8 8) u16) (read-byte *stream*)
+	  (ldb (byte 8 0) u16) (read-byte *stream*))
+    u16))
+
 
 
 ;; ==========================================================================
