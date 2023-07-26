@@ -53,6 +53,7 @@ It signals that a file header is not a valid OTF one."))
 
 (defun load-font (file)
   "Load FILE into a new font, and return it.
+If FILE's header is not recognized, signal an INVALID-FILE-HEADER error.
 
 While loading OTF data, any signalled condition is restartable with
 CANCEL-LOADING, in which case this function simply returns NIL."
