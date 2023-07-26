@@ -39,7 +39,8 @@
     :initarg :header
     :accessor header))
   (:report (lambda (invalid-file-header stream)
-	     (report stream "0x~X is not a valid OTF file header."
+	     (report stream "0x~X is not a valid OTF file header.
+Must be one of 0x00010000, 0x4f54544f ('OTTO'), or 0x74746366 ('ttcf')."
 	       (header invalid-file-header))))
   (:documentation "The Invalid File Header compliance error.
 It signals that a file header is not a valid OTF one."))
