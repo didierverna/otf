@@ -30,20 +30,50 @@
 
 
 ;; ==========================================================================
-;; Header
+;; Header Processing
 ;; ==========================================================================
 
-(define-condition invalid-file-header (otf-compliance-error)
+(define-condition invalid-header (otf-compliance-error)
   ((header
-    :documentation "The file header."
+    :documentation "The header."
     :initarg :header
     :accessor header))
-  (:report (lambda (invalid-file-header stream)
-	     (report stream "0x~X is not a valid OTF file header.
+  (:report (lambda (invalid-header stream)
+	     (report stream "0x~X is not a valid OTF header.
 Must be one of 0x00010000, 0x4f54544f ('OTTO'), or 0x74746366 ('ttcf')."
-	       (header invalid-file-header))))
-  (:documentation "The Invalid File Header compliance error.
-It signals that a file header is not a valid OTF one."))
+	       (header invalid-header))))
+  (:documentation "The Invalid Header compliance error.
+It signals that a data header is not a valid OTF one."))
+
+
+(define-constant +file-extensions+
+  '((#x00010000 "otf" "ttf")
+    (#x4f54544f "otf")
+    (#x74746366 "otc" "ttc"))
+  "The list of OTF valid file extensions for each data header.")
+
+(define-condition invalid-file-extension (otf-compliance-warning)
+  ((header
+    :documentation "The data header."
+    :initarg :header
+    :accessor header)
+   (extension
+    :documentation "The file extension."
+    :initarg :extension
+    :accessor extension))
+  (:report
+   (lambda (invalid-file-extension stream
+	    &aux (extensions (cdr (find (header invalid-file-extension)
+				      +file-extensions+
+				    :key #'car))))
+     (report stream "'~A' is not a valid extension for this file.
+Should be~:[~; one of~]~{ '~A'~}."
+	     (extension invalid-file-extension)
+	     (cdr extensions)
+	     extensions)))
+  (:documentation "The Invalid File Extension compliance warning.
+It signals that an OTF file's extension is not compliant with its alleged
+data."))
 
 
 
@@ -51,23 +81,34 @@ It signals that a file header is not a valid OTF one."))
 ;; Entry Point
 ;; ==========================================================================
 
-(defun load-font (file)
-  "Load FILE into a new font, and return it.
-If FILE's header is not recognized, signal an INVALID-FILE-HEADER error.
+(defun load-data (&aux (from-file-p (typep *stream* 'file-stream))
+		       (extension (when from-file-p
+				    (pathname-type (pathname *stream*)))))
+  "Load OTF data from *STREAM*.
+
+If the data header is not recognized, signal an INVALID-HEADER error.
+If the data comes from a file with a wrong extension,
+signal an INVALID-FILE-EXTENSION warning.
 
 While loading OTF data, any signalled condition is restartable with
 CANCEL-LOADING, in which case this function simply returns NIL."
+  (with-simple-restart (cancel-loading "Cancel loading.")
+    (let* ((header (read-u32))
+	   (extensions (cdr (find header +file-extensions+ :key #'car))))
+      (unless extensions (error 'invalid-header :header header))
+      (unless (and from-file-p (member extension extensions :test #'string=))
+	(warn 'invalid-file-extension :header header :extension extension))
+      (cond ((= header #x00010000)
+	     (load-tt-data))
+	    ((= header #x4f54544f) ;; OTTO
+	     (load-cff-data))
+	    ((= header #x74746366) ;; ttcf
+	     (load-collection-data))))))
+
+(defun load-file (file)
+  "Load OTF FILE."
   (with-open-file
       (*stream* file :direction :input :element-type '(unsigned-byte 8))
-    (with-simple-restart (cancel-loading "Cancel loading this font.")
-      (let ((header (read-u32)))
-	(cond ((= header #x00010000)
-	       (load-tt-font))
-	      ((= header #x4f54544f) ;; OTTO
-	       (load-cff-font))
-	      ((= header #x74746366) ;; ttcf
-	       (load-font-collection))
-	      (t
-	       (error 'invalid-file-header :header header)))))))
+    (load-data)))
 
 ;;; file.lisp ends here

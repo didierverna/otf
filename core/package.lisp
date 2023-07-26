@@ -46,12 +46,14 @@
     :nickname-package
 
     ;; From src/util.lisp:
-    :otf :otf-warning :otf-error :otf-compliance
-    :otf-compliance-warning :otf-compliance-error
+    :otf :otf-warning :otf-error
+    :otf-compliance :otf-compliance-warning :otf-compliance-error
 
     ;; From src/file.lisp:
-    :invalid-file-header
-    :load-font :cancel-loading))
+    :invalid-header :header
+    :invalid-file-extension :header :extension
+    :cancel-loading
+    :load-file))
 
 
 (in-package :net.didierverna.otf)

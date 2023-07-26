@@ -95,4 +95,15 @@ This is the root condition for errors related to OTF compliance."))
 	  (ldb (byte 8  0) u32) (read-byte *stream*))
     u32))
 
+
+
+;; ==========================================================================
+;; Miscellaneous
+;; ==========================================================================
+
+(defmacro define-constant (name value &optional documentation)
+  "Like DEFCONSTANT, but reuse existing value if any."
+  `(defconstant ,name (if (boundp ',name) (symbol-value ',name) ,value)
+     ,@(when documentation (list documentation))))
+
 ;;; util.lisp ends here
