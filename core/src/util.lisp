@@ -54,7 +54,7 @@ This is the mixin for conditions related to OTF compliance."))
 
 (define-condition otf-compliance-warning (otf-warning otf-compliance)
   ()
-  (:documentation "The OTF  compliance warnings root condition.
+  (:documentation "The OTF compliance warnings root condition.
 This is the root condition for warnings related to OTF compliance."))
 
 (define-condition otf-compliance-error (otf-error otf-compliance)
