@@ -103,6 +103,80 @@ This is the root condition for errors related to OTF compliance."))
     u16))
 
 
+;; ------------
+;; Other values
+;; ------------
+
+(define-condition invalid-tag (otf-compliance-error)
+  ()
+  (:documentation "The Invalid Tag compliance error.
+It signal that an OTF tag is ill-formed."))
+
+(define-condition invalid-tag-byte (invalid-tag)
+  ((tag-byte
+    :documentation "The invalid tag byte."
+    :initarg :tag-byte
+    :reader tag-byte)
+   (byte-number
+    :documentation "The byte number in the tag."
+    :initarg :byte-number
+    :reader byte-number))
+  (:report (lambda (invalid-tag-byte stream)
+	     (report stream "Invalid byte 0x~X at tag position ~A.
+Should be within the range 0x20 - 0x7E."
+		     (tag-byte invalid-tag-byte)
+		     (byte-number invalid-tag-byte))))
+  (:documentation "The Invalid Tag Byte compliance error.
+It signals that an OTF tag byte is not within the range of printable ASCII
+characters."))
+
+(define-condition spurious-tag-byte (invalid-tag-byte)
+  ()
+  (:report (lambda (spurious-tag-byte stream)
+	     (report stream "Spurious non-space byte 0x~X at tag position ~A.
+Should be 0x20."
+		     (tag-byte spurious-tag-byte)
+		     (byte-number spurious-tag-byte))))
+  (:documentation "The Spurious Tag Byte compliance error.
+It signals that a non-space OTF tag byte follows a space one."))
+
+(define-condition blank-tag (invalid-tag)
+  ()
+  (:report (lambda (blank-tag stream)
+	     (declare (ignore blank-tag))
+	     (report stream "Tag doesn't have any non-space characters.")))
+  (:documentation "The Blank Tag compliance error.
+It signals that a tag doesn't have any non-space characters."))
+
+(defun read-tag ()
+  "Read a tag from *STREAM*.
+The tag is returned as a string of up to four characters, potential padding
+spaces being discarded.
+
+If one of the original tag bytes is not in the printable ASCII character
+range, signal an INVALID-TAG-BYTE error.
+If a non-space character follows a space character, signal a SPURIOUS-TAG-BYTE
+error. This error is immediately restartable with DISCARD-TAG-BYTE.
+Finally, if the tag contains only space characters, signal a BLANK-TAG error."
+  (coerce
+   (mapcar #'code-char
+     (or (loop :with padding
+	       :for i :from 0 :to 3
+	       :for byte := (read-byte *stream*)
+	       :unless (<= #x20 byte #x7e)
+		 :do (error 'invalid-tag-byte :tag-byte byte :byte-number i)
+	       :when (and padding (not (= byte #x20)))
+		 :do (with-simple-restart
+			 (discard-tag-byte
+			  "Discard spurious tag byte (continue padding).")
+		       (error 'spurious-tag-byte :tag-byte byte :byte-number i))
+	       :if (= byte #x20)
+		 :do (setq padding t)
+	       :else :collect byte)
+	 (error 'blank-tag)))
+   'string))
+
+
 
 ;; ==========================================================================
 ;; Miscellaneous

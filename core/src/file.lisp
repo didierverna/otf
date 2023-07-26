@@ -30,8 +30,12 @@
 
 
 ;; ==========================================================================
-;; Header Processing
+;; Table Directory
 ;; ==========================================================================
+
+;; ------
+;; Header
+;; ------
 
 (define-condition invalid-header (otf-compliance-error)
   ((header
@@ -76,9 +80,26 @@ It signals that an OTF file's extension is not compliant with its alleged
 data."))
 
 
+;; -------------
+;; Table records
+;; -------------
+
+(defstruct table-record
+  "The TABLE-RECORD structure."
+  tag checksum offset length)
+
+(defun read-table-record (&aux (record (make-table-record)))
+  "Read a table record from *STREAM*."
+  ;; #### TODO: see about convenient restarts here (discard-table, ...)
+  (setf (table-record-tag record) (read-tag))
+  (setf (table-record-checksum record) (read-u32))
+  (setf (table-record-offset record) (read-u32))
+  (setf (table-record-length record) (read-u32))
+  record)
+
 
 ;; ==========================================================================
-;; Entry Point
+;; TrueType Outlines
 ;; ==========================================================================
 
 (define-condition invalid-value (otf-compliance-error)
@@ -138,6 +159,12 @@ FIX."
 			   :inferred inferred)
 	(fix () :report "Update to the correct value."
 	  (setf (range-shift font) inferred)))))
+  (let ((table-records (make-array (tables-number font)
+				   :element-type 'table-record)))
+    (dotimes (i (tables-number font))
+      ;; #### TODO: check ascending order by tag.
+      (setf (aref table-records i) (read-table-record)))
+    (return-from load-tt-data table-records))
   font)
 
 
