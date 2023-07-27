@@ -176,18 +176,14 @@ INVALID-TABLE-RECORDS-ORDER error. This error is continuable."
 			   :inferred inferred)
 	(fix () :report "Update to the correct value."
 	  (setf (range-shift font) inferred)))))
-  (let ((table-records (make-array (tables-number font)
-				   :element-type 'table-record))
-	(table-names (list)))
-    (dotimes (i (tables-number font))
-      (let ((record (read-table-record)))
-	(setf (aref table-records i) record)
-	(push (table-record-tag record) table-names)))
-    (let ((sorted-table-names (sort table-names #'string>)))
-      (unless (equal sorted-table-names table-names)
+  (let ((records (list)))
+    (dotimes (i (tables-number font)) (push (read-table-record) records))
+    (let ((sorted-records (sort records #'string> :key #'table-record-tag)))
+      (unless (equal sorted-records records)
 	(cerror "Continue anyway." 'invalid-table-records-order)))
     ;; #### TODO: check for unicity of the standardized tables.
-    #+()(return-from load-font-data table-records))
+    (setq records (sort records #'< :key #'table-record-offset))
+    (return-from load-font-data records))
   font)
 
 
