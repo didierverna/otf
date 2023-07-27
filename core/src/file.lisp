@@ -98,8 +98,9 @@ data."))
   record)
 
 
+
 ;; ==========================================================================
-;; TrueType Outlines
+;; Font Files
 ;; ==========================================================================
 
 (define-condition invalid-value (otf-compliance-error)
@@ -122,6 +123,16 @@ data."))
 		     (inferred invalid-value))))
   (:documentation "The Invalid Value compliance error.
 It signals that a provided value in OTF data is invalid."))
+
+(define-condition invalid-table-records-order (otf-compliance-error)
+  ()
+  (:report (lambda (invalid-table-records-order stream)
+	     (declare (ignore invalid-table-records-order))
+	     (report stream "Invalid table records order.
+The records should be sorted by ascending tag order.")))
+  (:documentation "The Invalid Table Records Order compliance error.
+It signals that the entries in the records in the table records array are not
+ordered by ascending tag."))
 
 (defun load-font-data
     (header
@@ -164,10 +175,15 @@ FIX."
 	(fix () :report "Update to the correct value."
 	  (setf (range-shift font) inferred)))))
   (let ((table-records (make-array (tables-number font)
-				   :element-type 'table-record)))
+				   :element-type 'table-record))
+	(table-names (list)))
     (dotimes (i (tables-number font))
-      ;; #### TODO: check ascending order by tag.
-      (setf (aref table-records i) (read-table-record)))
+      (let ((record (read-table-record)))
+	(setf (aref table-records i) record)
+	(push (table-record-tag record) table-names)))
+    (let ((sorted-table-names (sort table-names #'string>)))
+      (unless (equal sorted-table-names table-names)
+	(cerror "Continue anyway." 'invalid-table-records-order)))
     #+()(return-from load-font-data table-records))
   font)
 
