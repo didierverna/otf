@@ -145,7 +145,9 @@ ordered by ascending tag."))
 
 If any of the searchRange, entrySelector, or rangeShift values are invalid,
 signal an INVALID-VALUE error. This error is immediately restartable with
-FIX."
+FIX.
+If the table records are not properly ordered, signal an
+INVALID-TABLE-RECORDS-ORDER error. This error is continuable."
   (setf (tables-number font) (read-u16))
   (setf (search-range font) (read-u16))
   (let ((inferred (* 16 (expt 2 (floor (log (tables-number font) 2))))))
