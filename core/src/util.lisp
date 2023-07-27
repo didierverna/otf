@@ -63,6 +63,22 @@ This is the root condition for warnings related to OTF compliance."))
 This is the root condition for errors related to OTF compliance."))
 
 
+(define-condition otf-usage (otf)
+  ()
+  (:documentation "The OTF Usage root condition.
+This is the mixin for conditions related to the use of the library."))
+
+(define-condition otf-usage-warning (otf-warning otf-usage)
+  ()
+  (:documentation "The OTF usage warnings root condition.
+This is the root condition for warnings related to the use of the library."))
+
+(define-condition otf-usage-error (otf-error otf-usage)
+  ()
+  (:documentation "The OTF usage errors root condition.
+This is the root condition for errors related to the use of the library."))
+
+
 
 ;; ==========================================================================
 ;; Stream Reading

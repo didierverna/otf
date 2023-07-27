@@ -33,10 +33,6 @@
 ;; Table Directory
 ;; ==========================================================================
 
-;; ------
-;; Header
-;; ------
-
 (define-condition invalid-header (otf-compliance-error)
   ((header
     :documentation "The header."
@@ -78,24 +74,6 @@ Should be~:[~; one of~]~{ '~A'~}."
   (:documentation "The Invalid File Extension compliance warning.
 It signals that an OTF file's extension is not compliant with its alleged
 data."))
-
-
-;; -------------
-;; Table records
-;; -------------
-
-(defstruct table-record
-  "The TABLE-RECORD structure."
-  tag checksum offset length)
-
-(defun read-table-record (&aux (record (make-table-record)))
-  "Read a table record from *STREAM*."
-  ;; #### TODO: see about convenient restarts here (discard-table, ...)
-  (setf (table-record-tag record) (read-tag))
-  (setf (table-record-checksum record) (read-u32))
-  (setf (table-record-offset record) (read-u32))
-  (setf (table-record-length record) (read-u32))
-  record)
 
 
 
@@ -184,7 +162,8 @@ INVALID-TABLE-RECORDS-ORDER error. This error is continuable."
     ;; #### TODO: check for unicity of the standardized tables.
     ;; #### TODO: check for existence of required tables.
     (setq records (sort records #'< :key #'table-record-offset))
-    (return-from load-font-data records))
+    (dolist (record records)
+      (read-table font (intern (table-record-tag record) :keyword) record)))
   font)
 
 

@@ -44,9 +44,9 @@ For a more complete description of OTF, see the `net.didierverna.otf' system."
 	       (:module "src"
 		:serial t
 		:components ((:file "util")
-			     ;(:file "intermediate")
-			     ;(:file "character")
 			     (:file "font")
+			     (:module "table"
+			      :components ((:file "common")))
 			     (:file "file")))))
 
 ;;; net.didierverna.otf.core.asd ends here
