@@ -186,6 +186,7 @@ INVALID-TABLE-RECORDS-ORDER error. This error is continuable."
     (let ((sorted-table-names (sort table-names #'string>)))
       (unless (equal sorted-table-names table-names)
 	(cerror "Continue anyway." 'invalid-table-records-order)))
+    ;; #### TODO: check for unicity of the standardized tables.
     #+()(return-from load-font-data table-records))
   font)
 
