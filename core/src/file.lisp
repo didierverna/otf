@@ -123,10 +123,14 @@ data."))
   (:documentation "The Invalid Value compliance error.
 It signals that a provided value in OTF data is invalid."))
 
-(defun load-tt-data
-  (&key (file (when (typep *stream* 'file-stream) (pathname *stream*)))
-   &aux (font (make-font :file file)))
-  "Load OTF TrueType outlines data from *STREAM* into a new font.
+(defun load-font-data
+    (header
+     &aux (font (make-font (ecase header
+			     (#x00010000 :true-type)
+			     (#x4f54544f :compact-font-format))
+			   :file (when (typep *stream* 'file-stream)
+				   (pathname *stream*)))))
+  "Load OTF font data from *STREAM*.
 
 If any of the searchRange, entrySelector, or rangeShift values are invalid,
 signal an INVALID-VALUE error. This error is immediately restartable with
@@ -164,7 +168,7 @@ FIX."
     (dotimes (i (tables-number font))
       ;; #### TODO: check ascending order by tag.
       (setf (aref table-records i) (read-table-record)))
-    (return-from load-tt-data table-records))
+    #+()(return-from load-font-data table-records))
   font)
 
 
@@ -190,12 +194,9 @@ CANCEL-LOADING, in which case this function simply returns NIL."
       (unless extensions (error 'invalid-header :header header))
       (unless (and from-file-p (member extension extensions :test #'string=))
 	(warn 'invalid-file-extension :header header :extension extension))
-      (cond ((= header #x00010000)
-	     (load-tt-data))
-	    ((= header #x4f54544f) ;; OTTO
-	     (load-cff-data))
-	    ((= header #x74746366) ;; ttcf
-	     (load-collection-data))))))
+      (if (= header #x74746366) ;; ttcf
+	(load-font-collection-data)
+	(load-font-data header)))))
 
 (defun load-file (file)
   "Load OTF FILE."

@@ -38,11 +38,16 @@
 ;; -----
 
 (defclass font ()
-  ((file
+  ((outline-type
+    :documentation "The font's outline type.
+Either :true-type or :compact-font-format."
+    :initarg :outline-type
+    :reader outline-type)
+   (file
     :documentation "The file from which the font was loaded, or NIL."
     :initform nil
     :initarg :file
-    :accessor file)
+    :reader file)
    (tables-number
     :documentation "This font's number of tables."
     :accessor tables-number)
@@ -60,9 +65,9 @@ This class represents decoded font information. Within the context of this
 library, the term \"font\" denotes an instance of this class, or of one of its
 subclasses."))
 
-(defun make-font (&rest initargs)
-  "Make a new FONT instance, and return it.
+(defun make-font (outline-type &rest initargs)
+  "Make a new TYPE FONT instance, and return it.
 If INITARGS are provided, pass them as-is to MAKE-INSTANCE."
-  (apply #'make-instance 'font initargs))
+  (apply #'make-instance 'font :outline-type outline-type initargs))
 
 ;;; font.lisp ends here
