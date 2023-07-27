@@ -182,6 +182,7 @@ INVALID-TABLE-RECORDS-ORDER error. This error is continuable."
       (unless (equal sorted-records records)
 	(cerror "Continue anyway." 'invalid-table-records-order)))
     ;; #### TODO: check for unicity of the standardized tables.
+    ;; #### TODO: check for existence of required tables.
     (setq records (sort records #'< :key #'table-record-offset))
     (return-from load-font-data records))
   font)
