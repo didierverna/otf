@@ -95,7 +95,7 @@ data."))
     :initarg :inferred
     :reader inferred))
   (:report (lambda (invalid-value stream)
-	     (report stream "Invalid '~A' value: ~S. Should be ~S."
+	     (report stream "invalid '~A' value: ~S. Should be ~S."
 		     (kind invalid-value)
 		     (provided invalid-value)
 		     (inferred invalid-value))))
@@ -106,7 +106,7 @@ It signals that a provided value in OTF data is invalid."))
   ()
   (:report (lambda (invalid-table-records-order stream)
 	     (declare (ignore invalid-table-records-order))
-	     (report stream "Invalid table records order.
+	     (report stream "invalid table records order.
 The records should be sorted by ascending tag order.")))
   (:documentation "The Invalid Table Records Order compliance error.
 It signals that the entries in the records in the table records array are not

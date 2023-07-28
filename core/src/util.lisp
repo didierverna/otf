@@ -166,7 +166,7 @@ It signal that an OTF tag is ill-formed."))
     :initarg :byte-number
     :reader byte-number))
   (:report (lambda (invalid-tag-byte stream)
-	     (report stream "Invalid byte 0x~X at tag position ~A.
+	     (report stream "invalid byte 0x~X at tag position ~A.
 Should be within the range 0x20 - 0x7E."
 		     (tag-byte invalid-tag-byte)
 		     (byte-number invalid-tag-byte))))
@@ -177,7 +177,7 @@ characters."))
 (define-condition spurious-tag-byte (invalid-tag-byte)
   ()
   (:report (lambda (spurious-tag-byte stream)
-	     (report stream "Spurious non-space byte 0x~X at tag position ~A.
+	     (report stream "spurious non-space byte 0x~X at tag position ~A.
 Should be 0x20."
 		     (tag-byte spurious-tag-byte)
 		     (byte-number spurious-tag-byte))))
@@ -188,7 +188,7 @@ It signals that a non-space OTF tag byte follows a space one."))
   ()
   (:report (lambda (blank-tag stream)
 	     (declare (ignore blank-tag))
-	     (report stream "Tag doesn't have any non-space characters.")))
+	     (report stream "tag doesn't have any non-space characters.")))
   (:documentation "The Blank Tag compliance error.
 It signals that a tag doesn't have any non-space characters."))
 

@@ -57,7 +57,7 @@
     :initarg :name
     :reader name))
   (:report (lambda (unsupported-table stream)
-	     (report stream "Table '~A' is unsupported."
+	     (report stream "table '~A' is unsupported."
 		     (name unsupported-table))))
   (:documentation "The Unsupported Table usage warning.
 It signals that an OTF table is unsupported."))
@@ -73,7 +73,7 @@ It signals that an OTF table is unsupported."))
     :initarg :table-position
     :reader table-position))
   (:report (lambda (spurious-table-byte stream)
-	     (report stream "Spurious non-zero byte in table padding.
+	     (report stream "spurious non-zero byte in table padding.
 At position ~A, before the start of table '~A' at position ~A."
 		     (spurious-byte-position spurious-table-byte)
 		     (table-name spurious-table-byte)
