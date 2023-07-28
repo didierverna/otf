@@ -59,7 +59,10 @@ Either :true-type or :compact-font-format."
     :accessor entry-selector)
    (range-shift
     :documentation "This font's range shift."
-    :accessor range-shift))
+    :accessor range-shift)
+   (head
+    :documentation "This font's header table."
+    :accessor head))
   (:documentation "The Open Type Font class.
 This class represents decoded font information. Within the context of this
 library, the term \"font\" denotes an instance of this class, or of one of its

@@ -102,6 +102,23 @@ This is the root condition for errors related to the use of the library."))
 ;; Numerical values
 ;; ----------------
 
+(defun read-u64 ()
+  "Read an unsigned 32 bits Big Endian integer from *STREAM*."
+  (let ((u64 0))
+    (setf (ldb (byte 8 56) u64) (read-byte *stream*)
+	  (ldb (byte 8 48) u64) (read-byte *stream*)
+	  (ldb (byte 8 40) u64) (read-byte *stream*)
+	  (ldb (byte 8 32) u64) (read-byte *stream*)
+	  (ldb (byte 8 24) u64) (read-byte *stream*)
+	  (ldb (byte 8 16) u64) (read-byte *stream*)
+	  (ldb (byte 8  8) u64) (read-byte *stream*)
+	  (ldb (byte 8  0) u64) (read-byte *stream*))
+    u64))
+
+(defun read-s64 (&aux (u64 (read-u64)))
+  "Read an signed 64 bits Big Endian integer from *STREAM*."
+  (logior u64 (- (mask-field (byte 1 63) u64))))
+
 (defun read-u32 ()
   "Read an unsigned 32 bits Big Endian integer from *STREAM*."
   (let ((u32 0))
@@ -117,6 +134,17 @@ This is the root condition for errors related to the use of the library."))
     (setf (ldb (byte 8 8) u16) (read-byte *stream*)
 	  (ldb (byte 8 0) u16) (read-byte *stream*))
     u16))
+
+(defun read-s16 (&aux (u16 (read-u16)))
+  "Read an signed 16 bits Big Endian integer from *STREAM*."
+  (logior u16 (- (mask-field (byte 1 15) u16))))
+
+;; #### FIXME: I'm not sure yet how to actually read this (cons, 32bits value,
+;; etc.).
+(defun read-fixed ()
+  "Read a fixed (32bits signed fixed point number 16.16) from *STREAM*.
+Return a cons of the two 16 bits components."
+  (cons (read-s16) (read-u16)))
 
 
 ;; ------------
