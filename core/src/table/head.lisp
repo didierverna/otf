@@ -1,6 +1,6 @@
 ;;; head.lisp --- Head Table
 
-;; Copyright (C) 2023 Didier Verna
+;; Copyright (C) 2023, 2026 Didier Verna
 
 ;; Author: Didier Verna <didier@didierverna.net>
 
@@ -28,13 +28,14 @@
 (in-package :net.didierverna.otf)
 (in-readtable :net.didierverna.otf)
 
+
 (defstruct head-table
   "The 'head' table structure."
   version font-revision checksum-adjustment magic-number flags units-per-em
   dates bounding-box mac-style lowest-rec-ppem font-direction-hint
   index-to-loc-format glyph-data-format)
 
-(defmethod read-table (font (name (eql :|head|)) record)
+(defmethod read-table ((name (eql :|head|)) record font)
   "Read a 'head' table from *STREAM* into FONT."
   (setf (head font)
 	(make-head-table

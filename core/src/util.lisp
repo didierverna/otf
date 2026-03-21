@@ -1,6 +1,6 @@
 ;;; util.lisp --- General Utilities
 
-;; Copyright (C) 2023 Didier Verna
+;; Copyright (C) 2023, 2026 Didier Verna
 
 ;; Author: Didier Verna <didier@didierverna.net>
 
@@ -29,12 +29,74 @@
 (in-readtable :net.didierverna.otf)
 
 
+(defvar *stream* nil "The stream being read.")
+
+
+;; ==========================================================================
+;; Context-Aware Condition Reporting and Handling
+;; ==========================================================================
+
+(defclass context ()
+  ()
+  (:documentation "The CONTEXT class.
+This is the base class for classes representing contexts in which
+conditions are signalled."))
+
+(defgeneric context-string (context)
+  (:documentation "Return CONTEXT'string."))
+
+(defun context-format
+    (stream context format-string &rest arguments &aux (upcase t))
+  "Like FORMAT, but *STREAM* and CONTEXT-aware.
+- When *STREAM*, report that we're reading from it to STREAM.
+- When CONTEXT, report the context string to STREAM.
+- Finally, print FORMAT-STRING with ARGUMENTS to STREAM."
+  (when *stream*
+    (format stream "While reading ~A,~%"
+      (if (typep *stream* 'file-stream) (pathname *stream*) *stream*))
+    (setq upcase nil))
+  (when context
+    (format stream "~:[~A~;~@(~A~)~],~%" upcase (context-string context))
+    (setq upcase nil))
+  (apply #'format stream "~:[~@?~;~@(~@?~)~]." upcase format-string arguments))
+
+#i(define-condition-report 2)
+(defmacro define-condition-report
+    ((condition type) format-string &rest arguments)
+  "Define a context-aware report function for a CONDITION of TYPE.
+The reporting is ultimately done by calling FORMAT on FORMAT-STRING with
+ARGUMENTS."
+  (let ((the-stream (gensym "stream")))
+    `(defmethod print-object ((,condition ,type) ,the-stream)
+       (if *print-escape*
+	 (call-next-method)
+	 (context-format ,the-stream (context ,condition)
+	   ,format-string ,@arguments)))))
+
+(defmacro with-condition-context
+    ((condition-type context-type &rest initargs) &body body)
+  "Execute BODY within a particular condition signalling context.
+While BODY is executing, conditions of type CONDITION-TYPE (not evaluated) are
+caught and augmented with an instance of CONTEXT-TYPE (not evaluated)
+initialized with INITARGS."
+  `(handler-bind ((,condition-type
+		    (lambda (condition)
+		      (setf (slot-value condition 'context)
+			    (make-instance ',context-type ,@initargs)))))
+     ,@body))
+
+
+
+
 ;; ==========================================================================
 ;; Error Ontology
 ;; ==========================================================================
 
 (define-condition otf ()
-  ()
+  ((context
+    :documentation "The context in which the condition was signalled."
+    :initform nil
+    :reader context))
   (:documentation "The OTF root condition."))
 
 
@@ -80,27 +142,40 @@ This is the root condition for errors related to the use of the library."))
 
 
 
+
 ;; ==========================================================================
-;; Stream Reading
+;; Numbers
 ;; ==========================================================================
 
-(defvar *stream* nil "The stream being read.")
+(defun read-u16 ()
+  "Read an unsigned 16 bits Big Endian integer from *STREAM*."
+  (let ((u16 0))
+    (setf (ldb (byte 8 8) u16) (read-byte *stream*)
+	  (ldb (byte 8 0) u16) (read-byte *stream*))
+    u16))
 
-#i(report 2)
-(defun report (stream format-string &rest format-arguments)
-  "Like FORMAT, but if *STREAM* is bound, report that we're reading from it."
-  (if *stream*
-    (format stream "While reading ~A, "
-      (or (when (typep *stream* 'file-stream) (pathname *stream*))
-	  *stream*))
-    (when (alpha-char-p (aref format-string 0))
-      (setf (aref format-string 0) (char-upcase (aref format-string 0)))))
-  (apply #'format stream format-string format-arguments))
+(defun read-s16 (&aux (u16 (read-u16)))
+  "Read an signed 16 bits Big Endian integer from *STREAM*."
+  (logior u16 (- (mask-field (byte 1 15) u16))))
 
 
-;; ----------------
-;; Numerical values
-;; ----------------
+;; #### FIXME: I'm not sure yet how to actually read this (cons, 32bits value,
+;; etc.).
+(defun read-fixed ()
+  "Read a fixed (32bits signed fixed point number 16.16) from *STREAM*.
+Return a cons of the two 16 bits components."
+  (cons (read-s16) (read-u16)))
+
+
+(defun read-u32 ()
+  "Read an unsigned 32 bits Big Endian integer from *STREAM*."
+  (let ((u32 0))
+    (setf (ldb (byte 8 24) u32) (read-byte *stream*)
+	  (ldb (byte 8 16) u32) (read-byte *stream*)
+	  (ldb (byte 8  8) u32) (read-byte *stream*)
+	  (ldb (byte 8  0) u32) (read-byte *stream*))
+    u32))
+
 
 (defun read-u64 ()
   "Read an unsigned 32 bits Big Endian integer from *STREAM*."
@@ -119,37 +194,12 @@ This is the root condition for errors related to the use of the library."))
   "Read an signed 64 bits Big Endian integer from *STREAM*."
   (logior u64 (- (mask-field (byte 1 63) u64))))
 
-(defun read-u32 ()
-  "Read an unsigned 32 bits Big Endian integer from *STREAM*."
-  (let ((u32 0))
-    (setf (ldb (byte 8 24) u32) (read-byte *stream*)
-	  (ldb (byte 8 16) u32) (read-byte *stream*)
-	  (ldb (byte 8  8) u32) (read-byte *stream*)
-	  (ldb (byte 8  0) u32) (read-byte *stream*))
-    u32))
-
-(defun read-u16 ()
-  "Read an unsigned 16 bits Big Endian integer from *STREAM*."
-  (let ((u16 0))
-    (setf (ldb (byte 8 8) u16) (read-byte *stream*)
-	  (ldb (byte 8 0) u16) (read-byte *stream*))
-    u16))
-
-(defun read-s16 (&aux (u16 (read-u16)))
-  "Read an signed 16 bits Big Endian integer from *STREAM*."
-  (logior u16 (- (mask-field (byte 1 15) u16))))
-
-;; #### FIXME: I'm not sure yet how to actually read this (cons, 32bits value,
-;; etc.).
-(defun read-fixed ()
-  "Read a fixed (32bits signed fixed point number 16.16) from *STREAM*.
-Return a cons of the two 16 bits components."
-  (cons (read-s16) (read-u16)))
 
 
-;; ------------
-;; Other values
-;; ------------
+
+;; ==========================================================================
+;; Tags
+;; ==========================================================================
 
 (define-condition invalid-tag (otf-compliance-error)
   ()
@@ -165,43 +215,48 @@ It signal that an OTF tag is ill-formed."))
     :documentation "The byte number in the tag."
     :initarg :byte-number
     :reader byte-number))
-  (:report (lambda (invalid-tag-byte stream)
-	     (report stream "invalid byte 0x~X at tag position ~A.
-Should be within the range 0x20 - 0x7E."
-		     (tag-byte invalid-tag-byte)
-		     (byte-number invalid-tag-byte))))
   (:documentation "The Invalid Tag Byte compliance error.
 It signals that an OTF tag byte is not within the range of printable ASCII
 characters."))
 
+(define-condition-report (condition invalid-tag-byte)
+    "invalid byte 0x~X at tag position ~A.
+Should be within the range 0x20 - 0x7E"
+  (tag-byte condition)
+  (byte-number condition))
+
+
 (define-condition spurious-tag-byte (invalid-tag-byte)
   ()
-  (:report (lambda (spurious-tag-byte stream)
-	     (report stream "spurious non-space byte 0x~X at tag position ~A.
-Should be 0x20."
-		     (tag-byte spurious-tag-byte)
-		     (byte-number spurious-tag-byte))))
   (:documentation "The Spurious Tag Byte compliance error.
 It signals that a non-space OTF tag byte follows a space one."))
 
+(define-condition-report (condition spurious-tag-byte)
+    "spurious non-space byte 0x~X at tag position ~A.
+Should be 0x20"
+  (tag-byte condition)
+  (byte-number condition))
+
+
 (define-condition blank-tag (invalid-tag)
   ()
-  (:report (lambda (blank-tag stream)
-	     (declare (ignore blank-tag))
-	     (report stream "tag doesn't have any non-space characters.")))
   (:documentation "The Blank Tag compliance error.
 It signals that a tag doesn't have any non-space characters."))
 
+(define-condition-report (condition blank-tag)
+    "tag doesn't have any non-space characters")
+
+
 (defun read-tag ()
   "Read a tag from *STREAM*.
-The tag is returned as a string of up to four characters, potential padding
-spaces being discarded.
-
-If one of the original tag bytes is not in the printable ASCII character
-range, signal an INVALID-TAG-BYTE error.
-If a non-space character follows a space character, signal a SPURIOUS-TAG-BYTE
-error. This error is immediately restartable with DISCARD-TAG-BYTE.
-Finally, if the tag contains only space characters, signal a BLANK-TAG error."
+The tag is returned as a string of up to four characters.
+Potential padding spaces being discarded.
+- If one of the original tag bytes is not in the printable ASCII character
+  range, signal an INVALID-TAG-BYTE error.
+- If a non-space character follows a space character, signal a
+  SPURIOUS-TAG-BYTE error. This error is immediately restartable with
+  DISCARD-TAG-BYTE.
+- If the tag contains only space characters, signal a BLANK-TAG error."
   (coerce
    (mapcar #'code-char
      (or (loop :with padding
@@ -222,6 +277,7 @@ Finally, if the tag contains only space characters, signal a BLANK-TAG error."
 
 
 
+
 ;; ==========================================================================
 ;; Miscellaneous
 ;; ==========================================================================
@@ -230,5 +286,13 @@ Finally, if the tag contains only space characters, signal a BLANK-TAG error."
   "Like DEFCONSTANT, but reuse existing value if any."
   `(defconstant ,name (if (boundp ',name) (symbol-value ',name) ,value)
      ,@(when documentation (list documentation))))
+
+#i(remove-keys 1)
+(defun remove-keys (keys &rest removed)
+  "Return a new property list from KEYS without REMOVED ones."
+  (loop :for key :in keys :by #'cddr
+	:for val :in (cdr keys) :by #'cddr
+	:unless (member key removed)
+	  :nconc (list key val)))
 
 ;;; util.lisp ends here

@@ -1,6 +1,6 @@
 ;;; package.lisp --- OTF package definition
 
-;; Copyright (C) 2023 Didier Verna
+;; Copyright (C) 2023, 2026 Didier Verna
 
 ;; Author: Didier Verna <didier@didierverna.net>
 
@@ -29,7 +29,7 @@
 
 
 (defpackage :net.didierverna.otf
-  (:documentation "The Open Type Font.")
+  (:documentation "The Open Type Font package.")
   (:use :cl :net.didierverna.otf.setup)
   (:export
 
@@ -46,14 +46,36 @@
     :nickname-package
 
     ;; From src/util.lisp:
-    :otf :otf-warning :otf-error
+    :context :context-string
+    :otf :context :otf-warning :otf-error
     :otf-compliance :otf-compliance-warning :otf-compliance-error
+    :otf-usage :otf-usage-warning :otf-usage-error
+    :invalid-tag
+    :invalid-tag-byte :tag-byte :byte-number
+    :spurious-tag-byte :tag-byte :byte-number
+    :blank-tag
+    :discard-tag-byte
+
+    ;; From src/font.lisp:
+    :font :file :name :outline-type
+    :tables-number :search-range :entry-selector :range-shift
+    :head
+
+    ;; From src/table/common.lisp:
+    :unsupported-table :name
+    :spurious-table-byte :table-name :spurious-byte-position :table-position
+    :ignore-spurious-byte
 
     ;; From src/file.lisp:
+    :invalid-value :kind :provided :inferred
+    :invalid-table-records-order
+    :fix
+    :invalid-custom-name :name :use-base-file-name
     :invalid-header :header
     :invalid-file-extension :header :extension
+    :unsupported-format :ftm :file
     :cancel-loading
-    :load-file))
+    :load-font))
 
 
 (in-package :net.didierverna.otf)

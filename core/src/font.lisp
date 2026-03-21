@@ -1,6 +1,6 @@
 ;;; font.lisp --- Font Information
 
-;; Copyright (C) 2023 Didier Verna
+;; Copyright (C) 2023, 2026 Didier Verna
 
 ;; Author: Didier Verna <didier@didierverna.net>
 
@@ -38,16 +38,23 @@
 ;; -----
 
 (defclass font ()
-  ((outline-type
-    :documentation "The font's outline type.
-Either :true-type or :compact-font-format."
-    :initarg :outline-type
-    :reader outline-type)
-   (file
-    :documentation "The file from which the font was loaded, or NIL."
-    :initform nil
+  ((file
+    :documentation "The font's file."
     :initarg :file
     :reader file)
+   (name
+    :documentation "The font's name."
+    :initform nil
+    :initarg :name
+    :reader name)
+   ;; #### TODO: see later if this shouldn't be made into 2 different font
+   ;; classes. This will also condition the existence of a constructor
+   ;; function.
+   (outline-type
+    :documentation "The font's outline type.
+Possible values are :tt (True Type) or :cff (Compact Font Format)."
+    :initarg :outline-type
+    :reader outline-type)
    (tables-number
     :documentation "This font's number of tables."
     :accessor tables-number)
@@ -68,9 +75,22 @@ This class represents decoded font information. Within the context of this
 library, the term \"font\" denotes an instance of this class, or of one of its
 subclasses."))
 
-(defun make-font (outline-type &rest initargs)
-  "Make a new TYPE FONT instance, and return it.
-If INITARGS are provided, pass them as-is to MAKE-INSTANCE."
-  (apply #'make-instance 'font :outline-type outline-type initargs))
+
+(defmethod print-object ((font font) stream)
+  "Print FONT unreadably with its name to STREAM."
+  (print-unreadable-object (font stream :type t)
+    (format stream "~A (~A)" (name font) (outline-type font))))
+
+
+;; #### NOTE: we're not currently so pedantic as to check that the font's file
+;; has a non-empty base name.
+(defmethod initialize-instance :after ((font font) &key)
+  "Handle FONT's name initialization.
+Unless a custom name has been provided already, initialize FONT's name to the
+font file's base name."
+  (with-slots (file name) font
+    ;; #### NOTE: the validity of a custom name has already been checked by
+    ;; LOAD-FONT.
+    (unless name (setq name (pathname-name file)))))
 
 ;;; font.lisp ends here
