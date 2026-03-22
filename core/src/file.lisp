@@ -151,9 +151,9 @@ Must be one of 0x00010000 (TT), 0x4f54544f (CFF), or 0x74746366 (TTCF)."
 
 
 (define-constant +file-extensions+
-  '((#x00010000 "otf" "ttf")
-    (#x4f54544f "otf")
-    (#x74746366 "otc" "ttc"))
+  '((#x00010000 "otf" "OTF" "ttf" "TTF")
+    (#x4f54544f "otf" "OTF")
+    (#x74746366 "otc" "OTC" "ttc" "TTC"))
   "The list of OTF valid file extensions for each header.")
 
 (define-condition invalid-file-extension (otf-compliance-warning)
