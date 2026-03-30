@@ -62,7 +62,7 @@
 It signals that an OTF table is unsupported."))
 
 (define-condition-report (condition unsupported-table)
-    "table '~A' is unsupported." (name condition))
+    "table '~A' is not supported yet" (name condition))
 
 
 (define-condition spurious-table-byte (otf-compliance-error)
@@ -80,7 +80,7 @@ It signals that a non-zero byte was encountered in a table padding."))
 
 (define-condition-report (condition spurious-table-byte)
     "spurious non-zero byte in table padding.
-At position ~A, before the start of table '~A' at position ~A."
+At position ~A, before the start of table '~A' at position ~A"
   (spurious-byte-position condition)
   (table-name condition)
   (table-position condition))

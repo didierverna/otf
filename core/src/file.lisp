@@ -50,7 +50,7 @@
 It signals that a provided value in OTF data is invalid."))
 
 (define-condition-report (condition invalid-value)
-    "invalid '~A' value: ~S. Should be ~S."
+    "invalid '~A' value: ~S. Should be ~S"
   (kind condition)
   (provided condition)
   (inferred condition))
@@ -64,7 +64,7 @@ ascending tag."))
 
 (define-condition-report (condition invalid-table-records-order)
     "invalid table records order.
-The records should be sorted by ascending tag order.")
+The records should be sorted by ascending tag order")
 
 
 (defun load-stream (font)
@@ -146,7 +146,7 @@ It signals that a header is not a valid OTF one."))
 
 (define-condition-report (condition invalid-header)
     "0x~X is not a valid OTF header.
-Must be one of 0x00010000 (TT), 0x4f54544f (CFF), or 0x74746366 (TTCF)."
+Must be one of 0x00010000 (TT), 0x4f54544f (CFF), or 0x74746366 (TTCF)"
   (header condition))
 
 
@@ -173,7 +173,7 @@ data."))
 ;; variables.
 (define-condition-report (condition invalid-file-extension)
     "'~A' is not a valid extension for this file.
-Should be~:[~; one of~]~{ '~A'~}."
+Should be~:[~; one of~]~{ '~A'~}"
   (extension condition)
   (cddr (find (header condition) +file-extensions+ :key #'car))
   (cdr (find (header condition) +file-extensions+ :key #'car)))
