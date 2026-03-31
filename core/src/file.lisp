@@ -136,38 +136,38 @@ It signals that a custom name is not a non-empty string."))
   (name condition))
 
 
-(define-condition invalid-header (otf-compliance-error)
-  ((header
-    :documentation "The header."
-    :initarg :header
-    :accessor header))
-  (:documentation "The Invalid Header compliance error.
-It signals that a header is not a valid OTF one."))
+(define-condition invalid-sfnt-version (otf-compliance-error)
+  ((sfnt-version
+    :documentation "The invalid sfntVersion number."
+    :initarg :sfnt-version
+    :accessor sfnt-version))
+  (:documentation "The Invalid sfntVersion compliance error.
+It signals that an sfntVersion number is invalid."))
 
-(define-condition-report (condition invalid-header)
-    "0x~X is not a valid OTF header.
+(define-condition-report (condition invalid-sfnt-version)
+    "0x~X is not a valid sfntVersion number.
 Must be one of 0x00010000 (TT), 0x4f54544f (CFF), or 0x74746366 (TTCF)"
-  (header condition))
+  (sfnt-version condition))
 
 
 (define-constant +file-extensions+
   '((#x00010000 "otf" "OTF" "ttf" "TTF")
     (#x4f54544f "otf" "OTF")
     (#x74746366 "otc" "OTC" "ttc" "TTC"))
-  "The list of OTF valid file extensions for each header.")
+  "The list of OTF valid file extensions for each sfntVersion number.")
 
 (define-condition invalid-file-extension (otf-compliance-warning)
-  ((header
-    :documentation "The data header."
-    :initarg :header
-    :accessor header)
+  ((sfnt-version
+    :documentation "The sfntVersion number."
+    :initarg :sfnt-version
+    :accessor sfnt-version)
    (extension
     :documentation "The file extension."
     :initarg :extension
     :accessor extension))
   (:documentation "The Invalid File Extension compliance warning.
 It signals that an OTF file's extension is not compliant with its alleged
-data."))
+sfntVersion number."))
 
 ;; #### FIXME: DEFINE-CONDITION-REPORT should be extended to enable local
 ;; variables.
@@ -175,8 +175,8 @@ data."))
     "'~A' is not a valid extension for this file.
 Should be~:[~; one of~]~{ '~A'~}"
   (extension condition)
-  (cddr (find (header condition) +file-extensions+ :key #'car))
-  (cdr (find (header condition) +file-extensions+ :key #'car)))
+  (cddr (find (sfnt-version condition) +file-extensions+ :key #'car))
+  (cdr (find (sfnt-version condition) +file-extensions+ :key #'car)))
 
 
 (define-condition unsupported-format (otf-warning)
@@ -228,18 +228,20 @@ CANCEL-LOADING, in which case this function simply returns NIL."
   (with-open-file
       (*stream* file :direction :input :element-type '(unsigned-byte 8))
     (with-simple-restart (cancel-loading "Cancel loading.")
-      (let* ((header (read-u32))
-	     (extensions (cdr (find header +file-extensions+ :key #'car)))
+      (let* ((sfnt-version (read-u32))
+	     (extensions (cdr (find sfnt-version +file-extensions+ :key #'car)))
 	     (extension (pathname-type file)))
-	(unless extensions (error 'invalid-header :header header))
+	(unless extensions
+	  (error 'invalid-sfnt-version :sfnt-version sfnt-version))
 	(unless (member extension extensions :test #'string=)
-	  (warn 'invalid-file-extension :header header :extension extension))
-	(if (= header #x74746366)
+	  (warn 'invalid-file-extension
+	    :sfnt-version sfnt-version :extension extension))
+	(if (= sfnt-version #x74746366)
 	  (warn 'unsupported-format :fmt :ttcf :file file)
 	  (setq font (load-stream
 		      (apply #'make-instance 'font
 			     :file file
-			     :outline-type (ecase header
+			     :outline-type (ecase sfnt-version
 					     (#x00010000 :tt)
 					     (#x4f54544f :cff))
 			     keys)))))))
