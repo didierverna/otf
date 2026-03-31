@@ -67,7 +67,16 @@ ascending tag."))
 The records should be sorted by ascending tag order")
 
 
-(defun load-stream (font)
+(defclass table-directory-context (context)
+  ()
+  (:documentation "The Table Directory Context class."))
+
+(defmethod context-string ((context table-directory-context))
+  "Return the Table Directory CONTEXT string."
+  "while reading the table directory")
+
+
+(defun load-stream (font &aux records)
   "Parse *STREAM* into FONT, and return it.
 
 If any of the searchRange, entrySelector, or rangeShift values are invalid,
@@ -76,44 +85,44 @@ FIX.
 
 If the table records are not properly ordered, signal an
 INVALID-TABLE-RECORDS-ORDER error. This error is continuable."
-  (setf (tables-number font) (read-u16))
-  (setf (search-range font) (read-u16))
-  (let ((inferred (* 16 (expt 2 (floor (log (tables-number font) 2))))))
-    (unless (= (search-range font) inferred)
-      (restart-case (error 'invalid-value
-			   :kind "searchRange"
-			   :provided (search-range font)
-			   :inferred inferred)
-	(fix () :report "Update to the correct value."
-	  (setf (search-range font) inferred)))))
-  (setf (entry-selector font) (read-u16))
-  (let ((inferred (floor (log (tables-number font) 2))))
-    (unless (= (entry-selector font) inferred)
-      (restart-case (error 'invalid-value
-			   :kind "entrySelector"
-			   :provided (entry-selector font)
-			   :inferred inferred)
-	(fix () :report "Update to the correct value."
-	  (setf (entry-selector font) inferred)))))
-  (setf (range-shift font) (read-u16))
-  (let ((inferred (- (* (tables-number font) 16) (search-range font))))
-    (unless (= (range-shift font) inferred)
-      (restart-case (error 'invalid-value
-			   :kind "rangeShift"
-			   :provided (range-shift font)
-			   :inferred inferred)
-	(fix () :report "Update to the correct value."
-	  (setf (range-shift font) inferred)))))
-  (let (records)
+  (with-condition-context (otf table-directory-context)
+    (setf (tables-number font) (read-u16))
+    (setf (search-range font) (read-u16))
+    (let ((inferred (* 16 (expt 2 (floor (log (tables-number font) 2))))))
+      (unless (= (search-range font) inferred)
+	(restart-case (error 'invalid-value
+			:kind "searchRange"
+			:provided (search-range font)
+			:inferred inferred)
+	  (fix () :report "Update to the correct value."
+	    (setf (search-range font) inferred)))))
+    (setf (entry-selector font) (read-u16))
+    (let ((inferred (floor (log (tables-number font) 2))))
+      (unless (= (entry-selector font) inferred)
+	(restart-case (error 'invalid-value
+			:kind "entrySelector"
+			:provided (entry-selector font)
+			:inferred inferred)
+	  (fix () :report "Update to the correct value."
+	    (setf (entry-selector font) inferred)))))
+    (setf (range-shift font) (read-u16))
+    (let ((inferred (- (* (tables-number font) 16) (search-range font))))
+      (unless (= (range-shift font) inferred)
+	(restart-case (error 'invalid-value
+			:kind "rangeShift"
+			:provided (range-shift font)
+			:inferred inferred)
+	  (fix () :report "Update to the correct value."
+	    (setf (range-shift font) inferred)))))
     (dotimes (i (tables-number font)) (push (read-table-record) records))
     (let ((sorted-records (sort records #'string> :key #'table-record-tag)))
       (unless (equal sorted-records records)
 	(cerror "Continue anyway." 'invalid-table-records-order)))
     ;; #### TODO: check for unicity of the standardized tables.
     ;; #### TODO: check for existence of required tables.
-    (setq records (sort records #'< :key #'table-record-offset))
-    (dolist (record records)
-      (read-table (intern (table-record-tag record) :keyword) record font)))
+    (setq records (sort records #'< :key #'table-record-offset)))
+  (dolist (record records)
+    (read-table (intern (table-record-tag record) :keyword) record font))
   font)
 
 
