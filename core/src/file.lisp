@@ -50,7 +50,7 @@
 It signals that a provided value in OTF data is invalid."))
 
 (define-condition-report (condition invalid-value)
-    "invalid '~A' value: ~S. Should be ~S"
+    "invalid ~A value: ~S. Should be ~S"
   (kind condition)
   (provided condition)
   (inferred condition))
