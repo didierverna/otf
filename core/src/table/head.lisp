@@ -64,18 +64,9 @@
   (:documentation "The header ('head') table class."))
 
 
-(defclass header-table-context (context)
-  ()
-  (:documentation "The Header Table Context class."))
-
-(defmethod context-string ((context header-table-context))
-  "Return the Header Table CONTEXT string."
-  "while reading the header ('head') table")
-
-
-(defmethod read-table ((name (eql :|head|)) record font &aux head)
+(defmethod read-table ((tag (eql :|head|)) record font &aux head)
   "Read the header ('head') table from *STREAM* into FONT."
-  (with-condition-context (otf header-table-context)
+  (with-condition-context (otf table-context :tag tag)
     (setq head
 	  (make-instance 'head-table
 	    :version (cons (read-u16) (read-u16))
@@ -91,6 +82,9 @@
 	    :font-direction-hint (read-s16)
 	    :index-to-loc-format (read-s16)
 	    :glyph-data-format (read-s16))))
+  (unless (equal (table-version head) '(1 . 0))
+    (cerror "Continue anyway." 'invalid-table-version
+	    :actual (table-version head) :expected '(1 . 0)))
   (setf (slot-value font '|head|) head)
   head)
 

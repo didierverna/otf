@@ -59,7 +59,38 @@ It is normally a keyword, but may also be an uninterned symbol (see
 
 
 ;; ==========================================================================
-;; Tables
+;; Table Commonalities
+;; ==========================================================================
+
+(defclass table-context (context)
+  ((tag :documentation "The table's tag." :initarg :tag :reader tag))
+  (:documentation "The Table Context class."))
+
+(defmethod context-string ((context table-context))
+  "Return the Header Table CONTEXT string."
+  (format nil "while reading the '~A' table" (tag context)))
+
+
+(define-condition invalid-table-version (otf-compliance-error)
+  ((actual
+    :documentation "The actual version."
+    :initarg :actual :reader actual)
+   (expected
+    :documentation "The expected version."
+    :initarg :expected :reader expected))
+  (:documentation "The Invalid Table Version compliance error.
+It signals that a table version is not of the expected value."))
+
+(define-condition-report (condition invalid-table-version)
+  "table version ~A is invalid. Should be ~A"
+  (actual condition)
+  (expected condition))
+
+
+
+
+;; ==========================================================================
+;; Table Reading
 ;; ==========================================================================
 
 (define-condition unsupported-table (otf-usage-warning)
