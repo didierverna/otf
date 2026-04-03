@@ -91,7 +91,7 @@
 	    :font-direction-hint (read-s16)
 	    :index-to-loc-format (read-s16)
 	    :glyph-data-format (read-s16))))
-  (setf (slot-value font 'head) head)
+  (setf (slot-value font '|head|) head)
   head)
 
 ;;; common.lisp ends here
