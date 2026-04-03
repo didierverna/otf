@@ -33,18 +33,27 @@
 ;; Table records
 ;; ==========================================================================
 
-(defstruct table-record
-  "The TABLE-RECORD structure."
-  tag checksum offset length)
+(defclass table-record ()
+  ((tag
+    :documentation "The table's tag.
+It is normally a keyword, but may also be an uninterned symbol (see
+`read-table-record')."
+    :initarg :tag :reader tag)
+   (checksum
+    :documentation "The table's checksum."
+    :initarg :checksum :reader checksum)
+   (offset
+    :documentation "The table's offset."
+    :initarg :offset :reader offset)
+   (length
+    :documentation "The table's length."
+    :initarg :length :reader table-length))
+  (:documentation "The TABLE-RECORD class."))
 
-(defun read-table-record (&aux (record (make-table-record)))
+(defun read-table-record ()
   "Read a table record from *STREAM*."
-  ;; #### TODO: see about convenient restarts here (discard-table, ...)
-  (setf (table-record-tag record) (read-tag))
-  (setf (table-record-checksum record) (read-u32))
-  (setf (table-record-offset record) (read-u32))
-  (setf (table-record-length record) (read-u32))
-  record)
+  (make-instance 'table-record
+    :tag (read-tag) :checksum (read-u32) :offset (read-u32):length (read-u32)))
 
 
 
@@ -54,27 +63,26 @@
 ;; ==========================================================================
 
 (define-condition unsupported-table (otf-usage-warning)
-  ((name
-    :documentation "The table's name."
-    :initarg :name
-    :reader name))
+  ((tag
+    :documentation "The table's tag."
+    :initarg :tag :reader tag))
   (:documentation "The Unsupported Table usage warning.
 It signals that an OTF table is unsupported."))
 
 (define-condition-report (condition unsupported-table)
-    "table '~A' is not supported yet" (name condition))
+    "table '~A' is not supported yet" (tag condition))
 
 
 (define-condition spurious-table-byte (otf-compliance-error)
-  ((table-name
-    :initarg :table-name
-    :reader table-name)
+  ((tag
+    :documentation "The next table's tag."
+    :initarg :tag :reader tag)
    (spurious-byte-position
-    :initarg :spurious-byte-position
-    :reader spurious-byte-position)
-   (table-position
-    :initarg :table-position
-    :reader table-position))
+    :documentation "The position of the spurious byte."
+    :initarg :spurious-byte-position :reader spurious-byte-position)
+   (start
+    :documentation "The next table's start position."
+    :initarg :start :reader start))
   (:documentation "The Spurious Table Byte compliance error.
 It signals that a non-zero byte was encountered in a table padding."))
 
@@ -82,34 +90,34 @@ It signals that a non-zero byte was encountered in a table padding."))
     "spurious non-zero byte in table padding.
 At position ~A, before the start of table '~A' at position ~A"
   (spurious-byte-position condition)
-  (table-name condition)
-  (table-position condition))
+  (tag condition)
+  (start condition))
 
 
-(defgeneric read-table (name record font)
+(defgeneric read-table (tag record font)
   (:documentation "Read a new table from *STREAM* into FONT.
-NAME is the table's name as a Lisp keyword.
+TAG is the table's tag as a Lisp keyword.
 RECORD is the corresponding table record from the tables directory.
 The file position in *STREAM* must be before, or exactly at the beginning of
 the table to be read, and strictly after the contents of the previous table,
 if any.")
-  (:method :before (name record font)
+  (:method :before (tag record font)
     "Skip potential padding before the beginning of the table.
-
 If a non-zero byte is found while skipping, signal a SPURIOUS-TABLE-BYTE
-error. This error is immediately restartable with IGNORE-SPURIOUS-BYTE."
-    (assert (<= (file-position *stream*) (table-record-offset record)))
-    (dotimes (i (- (table-record-offset record) (file-position *stream*)))
+error. This error is immediately restartable with IGNORE-SPURIOUS-TABLE-BYTE."
+    (assert (<= (file-position *stream*) (offset record)))
+    (dotimes (i (- (offset record) (file-position *stream*)))
       (unless (= (read-byte *stream*) #x00)
-	(with-simple-restart (ignore-spurious-byte "Ignore spurious byte.")
+	(with-simple-restart
+	    (ignore-spurious-table-byte "Ignore spurious table byte.")
 	  (error 'spurious-table-byte
-		 :table-name (table-record-tag record)
-		 :spurious-byte-position (1- (file-position *stream*))
-		 :table-position (table-record-offset record))))))
-  (:method (name record font)
+	    :tag (tag record)
+	    :spurious-byte-position (1- (file-position *stream*))
+	    :start (offset record))))))
+  (:method (tag record font)
     "Signal an UNSUPPORTED-TABLE warning, and skip table.
 This is the default method."
-    (warn 'unsupported-table :name (table-record-tag record))
-    (dotimes (i (table-record-length record)) (read-byte *stream*))))
+    (warn 'unsupported-table :tag (tag record))
+    (dotimes (i (table-length record)) (read-byte *stream*))))
 
 ;;; common.lisp ends here

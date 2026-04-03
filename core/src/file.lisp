@@ -115,14 +115,14 @@ INVALID-TABLE-RECORDS-ORDER error. This error is continuable."
 	  (fix () :report "Update to the correct value."
 	    (setf (range-shift font) inferred)))))
     (dotimes (i (tables-number font)) (push (read-table-record) records))
-    (let ((sorted-records (sort records #'string> :key #'table-record-tag)))
+    (let ((sorted-records (sort records #'string> :key #'tag)))
       (unless (equal sorted-records records)
 	(cerror "Continue anyway." 'invalid-table-records-order)))
     ;; #### TODO: check for unicity of the standardized tables.
     ;; #### TODO: check for existence of required tables.
-    (setq records (sort records #'< :key #'table-record-offset)))
+    (setq records (sort records #'< :key #'offset)))
   (dolist (record records)
-    (read-table (intern (table-record-tag record) :keyword) record font))
+    (read-table (tag record) record font))
   font)
 
 
@@ -234,8 +234,7 @@ CANCEL-LOADING, in which case this function simply returns NIL."
       (restart-case (error 'invalid-custom-name :name name)
 	(use-file-base-name () :report "Use the font file's base name."
 	  (setq keys (remove-keys keys :name))))))
-  (with-open-file
-      (*stream* file :direction :input :element-type '(unsigned-byte 8))
+  (with-open-file (*stream* file :element-type '(unsigned-byte 8))
     (with-simple-restart (cancel-loading "Cancel loading.")
       (let* ((sfnt-version (read-u32))
 	     (extensions (cdr (find sfnt-version +file-extensions+ :key #'car)))

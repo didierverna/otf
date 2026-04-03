@@ -247,33 +247,41 @@ It signals that a tag doesn't have any non-space characters."))
     "tag doesn't have any non-space characters")
 
 
-(defun read-tag ()
+(defun read-tag (&aux bytes)
   "Read a tag from *STREAM*.
-The tag is returned as a string of up to four characters.
-Potential padding spaces being discarded.
+The tag is returned as a case-sensitive keyword with trailing spaces removed.
 - If one of the original tag bytes is not in the printable ASCII character
-  range, signal an INVALID-TAG-BYTE error.
+  range, signal an INVALID-TAG-BYTE error. This error is immediately
+  restartable with KEEP-TAG-BYTE.
 - If a non-space character follows a space character, signal a
   SPURIOUS-TAG-BYTE error. This error is immediately restartable with
   DISCARD-TAG-BYTE.
-- If the tag contains only space characters, signal a BLANK-TAG error."
-  (coerce
-   (mapcar #'code-char
-     (or (loop :with padding
-	       :for i :from 0 :to 3
-	       :for byte := (read-byte *stream*)
-	       :unless (<= #x20 byte #x7e)
-		 :do (error 'invalid-tag-byte :tag-byte byte :byte-number i)
-	       :when (and padding (not (= byte #x20)))
-		 :do (with-simple-restart
-			 (discard-tag-byte
-			  "Discard spurious tag byte (continue padding).")
-		       (error 'spurious-tag-byte :tag-byte byte :byte-number i))
-	       :if (= byte #x20)
-		 :do (setq padding t)
-	       :else :collect byte)
-	 (error 'blank-tag)))
-   'string))
+- If the tag contains only space characters, signal a BLANK-TAG error. This
+  error is immediately restartable with USE-GENSYMED-TAG."
+  (let (byte padding)
+    (dotimes (i 4)
+      (setq byte (read-byte *stream*))
+      (cond ((= byte #x20)
+	     (unless padding (setq padding t)))
+	    (padding
+	     (with-simple-restart
+		 (discard-tag-byte
+		  "Discard spurious tag byte (continue padding).")
+	       (error 'spurious-tag-byte :tag-byte byte :byte-number i)))
+	    (t
+	     (if (and (< #x20 byte) (<= byte #x7e))
+	       (push byte bytes)
+	       (restart-case
+		   (error 'invalid-tag-byte :tag-byte byte :byte-number i)
+		 (keep-tag-byte ()
+		   :report "Keep tag byte anyway."
+		   (push byte bytes))))))))
+  (if (null bytes)
+    (restart-case (error 'blank-tag)
+      (use-gensymed-tag ()
+	:report "Use a gensym'ed tag."
+	(gensym "TAG")))
+    (intern (coerce (mapcar #'code-char (nreverse bytes)) 'string) :keyword)))
 
 
 
