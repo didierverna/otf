@@ -81,10 +81,10 @@
 	    :lowest-rec-ppem (read-u16)
 	    :font-direction-hint (read-s16)
 	    :index-to-loc-format (read-s16)
-	    :glyph-data-format (read-s16))))
-  (unless (equal (table-version head) '(1 . 0))
-    (cerror "Continue anyway." 'invalid-table-version
-	    :actual (table-version head) :expected '(1 . 0)))
+	    :glyph-data-format (read-s16)))
+    (unless (equal (table-version head) '(1 . 0))
+      (cerror "Continue anyway." 'invalid-table-version
+	      :actual (table-version head) :expected '(1 . 0))))
   (setf (slot-value font '|head|) head)
   head)
 
