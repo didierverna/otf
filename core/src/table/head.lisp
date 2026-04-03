@@ -29,28 +29,69 @@
 (in-readtable :net.didierverna.otf)
 
 
-(defstruct head-table
-  "The 'head' table structure."
-  version font-revision checksum-adjustment magic-number flags units-per-em
-  dates bounding-box mac-style lowest-rec-ppem font-direction-hint
-  index-to-loc-format glyph-data-format)
+(defclass head-table ()
+  ((version
+    :documentation
+    "The header table's version as (majorVersion . minorVersion)."
+    :initarg :version :reader table-version)
+   (font-revision
+    :documentation "The font's revision as (major . minor)."
+    :initarg :font-revision :reader font-revision)
+   (checksum-adjustment
+    :initarg :checksum-adjustment :reader checksum-adjustment)
+   (magic-number
+    :initarg :magic-number :reader magic-number)
+   (flags
+    :initarg :flags :reader flags)
+   (units-per-em
+    :initarg :units-per-em :reader units-per-em)
+   (dates
+    :documentation "The font's dates as (created . modified)."
+    :initarg :dates :reader dates)
+   (bounds
+    :documentation "The font's bounds as (xMin yMin xMax yMax)."
+    :initarg :bounds :reader bounds)
+   (mac-style
+    :initarg :mac-style :reader mac-style)
+   (lowest-rec-ppem
+    :initarg :lowest-rec-ppem :reader lowest-rec-ppem)
+   (font-direction-hint
+    :initarg :font-direction-hint :reader font-direction-hint)
+   (index-to-loc-format
+    :initarg :index-to-loc-format :reader index-to-loc-format)
+   (glyph-data-format
+    :initarg :glyph-data-format :reader glyph-data-format))
+  (:documentation "The header ('head') table class."))
 
-(defmethod read-table ((name (eql :|head|)) record font)
-  "Read a 'head' table from *STREAM* into FONT."
-  (setf (head font)
-	(make-head-table
-	 :version (cons (read-u16) (read-u16))
-	 :font-revision (read-fixed)
-	 :checksum-adjustment (read-u32)
-	 :magic-number (read-u32)
-	 :flags (read-u16)
-	 :units-per-em (read-u16)
-	 :dates (cons (read-s64) (read-s64))
-	 :bounding-box (list (read-s16) (read-s16) (read-s16) (read-s16))
-	 :mac-style (read-u16)
-	 :lowest-rec-ppem (read-u16)
-	 :font-direction-hint (read-s16)
-	 :index-to-loc-format (read-s16)
-	 :glyph-data-format (read-s16))))
+
+(defclass header-table-context (context)
+  ()
+  (:documentation "The Header Table Context class."))
+
+(defmethod context-string ((context header-table-context))
+  "Return the Header Table CONTEXT string."
+  "while reading the header ('head') table")
+
+
+(defmethod read-table ((name (eql :|head|)) record font &aux head)
+  "Read the header ('head') table from *STREAM* into FONT."
+  (with-condition-context (otf header-table-context)
+    (setq head
+	  (make-instance 'head-table
+	    :version (cons (read-u16) (read-u16))
+	    :font-revision (read-fixed)
+	    :checksum-adjustment (read-u32)
+	    :magic-number (read-u32)
+	    :flags (read-u16)
+	    :units-per-em (read-u16)
+	    :dates (cons (read-s64) (read-s64))
+	    :bounds (list (read-s16) (read-s16) (read-s16) (read-s16))
+	    :mac-style (read-u16)
+	    :lowest-rec-ppem (read-u16)
+	    :font-direction-hint (read-s16)
+	    :index-to-loc-format (read-s16)
+	    :glyph-data-format (read-s16))))
+  (setf (slot-value font 'head) head)
+  head)
 
 ;;; common.lisp ends here
