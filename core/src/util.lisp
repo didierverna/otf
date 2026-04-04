@@ -125,6 +125,29 @@ This is the root condition for warnings related to OTF compliance."))
 This is the root condition for errors related to OTF compliance."))
 
 
+(define-condition invalid-value (otf-compliance-error)
+  ((kind
+    :documentation "The kind of invalid value."
+    :initarg :kind
+    :reader kind)
+   (actual
+    :documentation "The actual value."
+    :initarg :actual
+    :reader actual)
+   (expected
+    :documentation "The expected value."
+    :initarg :expected
+    :reader expected))
+  (:documentation "The Invalid Value compliance error.
+It signals that a provided value in OTF data is invalid."))
+
+(define-condition-report (condition invalid-value)
+    "invalid ~A value: ~A. Should be ~A"
+  (kind condition)
+  (actual condition)
+  (expected condition))
+
+
 (define-condition otf-usage (otf)
   ()
   (:documentation "The OTF Usage root condition.

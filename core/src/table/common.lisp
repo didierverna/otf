@@ -71,22 +71,6 @@ It is normally a keyword, but may also be an uninterned symbol (see
   (format nil "while reading the '~A' table" (tag context)))
 
 
-(define-condition invalid-table-version (otf-compliance-error)
-  ((actual
-    :documentation "The actual version."
-    :initarg :actual :reader actual)
-   (expected
-    :documentation "The expected version."
-    :initarg :expected :reader expected))
-  (:documentation "The Invalid Table Version compliance error.
-It signals that a table version is not of the expected value."))
-
-(define-condition-report (condition invalid-table-version)
-  "table version ~A is invalid. Should be ~A"
-  (actual condition)
-  (expected condition))
-
-
 
 
 ;; ==========================================================================
@@ -118,8 +102,8 @@ It signals that an OTF table is unsupported."))
 It signals that a non-zero byte was encountered in a table padding."))
 
 (define-condition-report (condition spurious-table-byte)
-    "spurious non-zero byte in table padding.
-At position ~A, before the start of table '~A' at position ~A"
+    "spurious non-zero byte in table padding, ~
+     at position ~A, before the start of table '~A' at position ~A"
   (spurious-byte-position condition)
   (tag condition)
   (start condition))

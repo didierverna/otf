@@ -65,7 +65,9 @@
 
 
 (defmethod read-table ((tag (eql :|head|)) record font &aux head)
-  "Read the header ('head') table from *STREAM* into FONT."
+  "Read the header ('head') table from *STREAM* into FONT.
+If the table version is not 1.0, signal an INVALID-VALUE error. This error is
+immediately restartable with FIX or CONTINUE."
   (with-condition-context (otf table-context :tag tag)
     (setq head
 	  (make-instance 'head-table
@@ -83,8 +85,13 @@
 	    :index-to-loc-format (read-s16)
 	    :glyph-data-format (read-s16)))
     (unless (equal (table-version head) '(1 . 0))
-      (cerror "Continue anyway." 'invalid-table-version
-	      :actual (table-version head) :expected '(1 . 0))))
+      (restart-case (error 'invalid-value
+		      :kind "table version"
+		      :actual (table-version head)
+		      :expected '(1 . 0))
+	(fix () :report "Set to 1.0."
+	  (setf (slot-value head 'version) '(1 . 0)))
+	(continue () :report "Continue anyway."))))
   (setf (slot-value font '|head|) head)
   head)
 

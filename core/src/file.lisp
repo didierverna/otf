@@ -33,29 +33,6 @@
 ;; Stream Loading
 ;; ==========================================================================
 
-(define-condition invalid-value (otf-compliance-error)
-  ((kind
-    :documentation "The kind of invalid value."
-    :initarg :kind
-    :reader kind)
-   (provided
-    :documentation "The provided invalid value."
-    :initarg :provided
-    :reader provided)
-   (inferred
-    :documentation "The inferred correct value."
-    :initarg :inferred
-    :reader inferred))
-  (:documentation "The Invalid Value compliance error.
-It signals that a provided value in OTF data is invalid."))
-
-(define-condition-report (condition invalid-value)
-    "invalid ~A value: ~S. Should be ~S"
-  (kind condition)
-  (provided condition)
-  (inferred condition))
-
-
 (define-condition invalid-table-records-order (otf-compliance-error)
   ()
   (:documentation "The Invalid Table Records Order compliance error.
@@ -63,8 +40,7 @@ It signals that the entries in the table records array are not ordered by
 ascending tag."))
 
 (define-condition-report (condition invalid-table-records-order)
-    "invalid table records order.
-The records should be sorted by ascending tag order")
+    "invalid table records order. Should be sorted by ascending tag")
 
 
 (defclass table-directory-context (context)
@@ -81,39 +57,42 @@ The records should be sorted by ascending tag order")
 
 If any of the searchRange, entrySelector, or rangeShift values are invalid,
 signal an INVALID-VALUE error. This error is immediately restartable with
-FIX.
+FIX or CONTINUE.
 
-If the table records are not properly ordered, signal an
-INVALID-TABLE-RECORDS-ORDER error. This error is continuable."
+If the table records are not properly ordered, signal a
+INVALID-TABLE-RECORDS-ORDER continuable error."
   (with-condition-context (otf table-directory-context)
     (setf (tables-number font) (read-u16))
     (setf (search-range font) (read-u16))
-    (let ((inferred (* 16 (expt 2 (floor (log (tables-number font) 2))))))
-      (unless (= (search-range font) inferred)
+    (let ((expected (* 16 (expt 2 (floor (log (tables-number font) 2))))))
+      (unless (= (search-range font) expected)
 	(restart-case (error 'invalid-value
 			:kind "searchRange"
-			:provided (search-range font)
-			:inferred inferred)
-	  (fix () :report "Update to the correct value."
-	    (setf (search-range font) inferred)))))
+			:actual (search-range font)
+			:expected expected)
+	  (continue () :report "Continue anyway.")
+	  (fix () :report "Fix the value."
+	    (setf (search-range font) expected)))))
     (setf (entry-selector font) (read-u16))
-    (let ((inferred (floor (log (tables-number font) 2))))
-      (unless (= (entry-selector font) inferred)
+    (let ((expected (floor (log (tables-number font) 2))))
+      (unless (= (entry-selector font) expected)
 	(restart-case (error 'invalid-value
 			:kind "entrySelector"
-			:provided (entry-selector font)
-			:inferred inferred)
+			:actual (entry-selector font)
+			:expected expected)
+	  (continue () :report "Continue anyway.")
 	  (fix () :report "Update to the correct value."
-	    (setf (entry-selector font) inferred)))))
+	    (setf (entry-selector font) expected)))))
     (setf (range-shift font) (read-u16))
-    (let ((inferred (- (* (tables-number font) 16) (search-range font))))
-      (unless (= (range-shift font) inferred)
+    (let ((expected (- (* (tables-number font) 16) (search-range font))))
+      (unless (= (range-shift font) expected)
 	(restart-case (error 'invalid-value
 			:kind "rangeShift"
-			:provided (range-shift font)
-			:inferred inferred)
+			:actual (range-shift font)
+			:expected expected)
+	  (continue () :report "Continue anyway.")
 	  (fix () :report "Update to the correct value."
-	    (setf (range-shift font) inferred)))))
+	    (setf (range-shift font) expected)))))
     (dotimes (i (tables-number font)) (push (read-table-record) records))
     (let ((sorted-records (sort records #'string> :key #'tag)))
       (unless (equal sorted-records records)
@@ -121,8 +100,7 @@ INVALID-TABLE-RECORDS-ORDER error. This error is continuable."
     ;; #### TODO: check for unicity of the standardized tables.
     ;; #### TODO: check for existence of required tables.
     (setq records (sort records #'< :key #'offset)))
-  (dolist (record records)
-    (read-table (tag record) record font))
+  (dolist (record records) (read-table (tag record) record font))
   font)
 
 
@@ -141,7 +119,7 @@ INVALID-TABLE-RECORDS-ORDER error. This error is continuable."
 It signals that a custom name is not a non-empty string."))
 
 (define-condition-report (condition invalid-custom-name)
-    "custom name ~S is invalid (should be a non-empty string)"
+    "invalid custom name: ~S. Should be a non-empty string"
   (name condition))
 
 
@@ -154,8 +132,8 @@ It signals that a custom name is not a non-empty string."))
 It signals that an sfntVersion number is invalid."))
 
 (define-condition-report (condition invalid-sfnt-version)
-    "0x~X is not a valid sfntVersion number.
-Must be one of 0x00010000 (TT), 0x4f54544f (CFF), or 0x74746366 (TTCF)"
+    "invalid sfntVersion number: 0x~X. ~
+     Should be one of 0x00010000 (TT), 0x4f54544f (CFF), or 0x74746366 (TTCF)"
   (sfnt-version condition))
 
 
@@ -181,8 +159,7 @@ sfntVersion number."))
 ;; #### FIXME: DEFINE-CONDITION-REPORT should be extended to enable local
 ;; variables.
 (define-condition-report (condition invalid-file-extension)
-    "'~A' is not a valid extension for this file.
-Should be~:[~; one of~]~{ '~A'~}"
+    "invalid file extension: '~A'. Should be~:[~; one of~]~{ '~A'~}"
   (extension condition)
   (cddr (find (sfnt-version condition) +file-extensions+ :key #'car))
   (cdr (find (sfnt-version condition) +file-extensions+ :key #'car)))
