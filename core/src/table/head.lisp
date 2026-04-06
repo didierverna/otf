@@ -68,7 +68,7 @@
   "Read the header ('head') table from *STREAM* into FONT.
 If the table version is not 1.0, signal an INVALID-VALUE error. This error is
 immediately restartable with FIX or CONTINUE."
-  (with-condition-context (otf table-context :tag tag)
+  (with-condition-context (otf table :tag tag)
     (setq head
 	  (make-instance 'head-table
 	    :version (cons (read-u16) (read-u16))

@@ -32,71 +32,16 @@
 (defvar *stream* nil "The stream being read.")
 
 
-;; ==========================================================================
-;; Context-Aware Condition Reporting and Handling
-;; ==========================================================================
-
-(defclass context ()
-  ()
-  (:documentation "The CONTEXT class.
-This is the base class for classes representing contexts in which
-conditions are signalled."))
-
-(defgeneric context-string (context)
-  (:documentation "Return CONTEXT'string."))
-
-(defun context-format
-    (stream context format-string &rest arguments &aux (upcase t))
-  "Like FORMAT, but *STREAM* and CONTEXT-aware.
-- When *STREAM*, report that we're reading from it to STREAM.
-- When CONTEXT, report the context string to STREAM.
-- Finally, print FORMAT-STRING with ARGUMENTS to STREAM."
-  (when *stream*
-    (format stream "While reading ~A,~%"
-      (if (typep *stream* 'file-stream) (pathname *stream*) *stream*))
-    (setq upcase nil))
-  (when context
-    (format stream "~:[~A~;~@(~A~)~],~%" upcase (context-string context))
-    (setq upcase nil))
-  (apply #'format stream "~:[~@?~;~@(~@?~)~]." upcase format-string arguments))
-
-#i(define-condition-report 2)
-(defmacro define-condition-report
-    ((condition type) format-string &rest arguments)
-  "Define a context-aware report function for a CONDITION of TYPE.
-The reporting is ultimately done by calling FORMAT on FORMAT-STRING with
-ARGUMENTS."
-  (let ((the-stream (gensym "stream")))
-    `(defmethod print-object ((,condition ,type) ,the-stream)
-       (if *print-escape*
-	 (call-next-method)
-	 (context-format ,the-stream (context ,condition)
-	   ,format-string ,@arguments)))))
-
-(defmacro with-condition-context
-    ((condition-type context-type &rest initargs) &body body)
-  "Execute BODY within a particular condition signalling context.
-While BODY is executing, conditions of type CONDITION-TYPE (not evaluated) are
-caught and augmented with an instance of CONTEXT-TYPE (not evaluated)
-initialized with INITARGS."
-  `(handler-bind ((,condition-type
-		    (lambda (condition)
-		      (setf (slot-value condition 'context)
-			    (make-instance ',context-type ,@initargs)))))
-     ,@body))
-
-
-
 
 ;; ==========================================================================
 ;; Error Ontology
 ;; ==========================================================================
 
 (define-condition otf ()
-  ((context
-    :documentation "The context in which the condition was signalled."
+  ((contexts
+    :documentation "The list of contexts in which the condition was signalled."
     :initform nil
-    :reader context))
+    :accessor contexts))
   (:documentation "The OTF root condition."))
 
 
@@ -125,29 +70,6 @@ This is the root condition for warnings related to OTF compliance."))
 This is the root condition for errors related to OTF compliance."))
 
 
-(define-condition invalid-value (otf-compliance-error)
-  ((kind
-    :documentation "The kind of invalid value."
-    :initarg :kind
-    :reader kind)
-   (actual
-    :documentation "The actual value."
-    :initarg :actual
-    :reader actual)
-   (expected
-    :documentation "The expected value."
-    :initarg :expected
-    :reader expected))
-  (:documentation "The Invalid Value compliance error.
-It signals that a provided value in OTF data is invalid."))
-
-(define-condition-report (condition invalid-value)
-    "invalid ~A value: ~A. Should be ~A"
-  (kind condition)
-  (actual condition)
-  (expected condition))
-
-
 (define-condition otf-usage (otf)
   ()
   (:documentation "The OTF Usage root condition.
@@ -162,6 +84,95 @@ This is the root condition for warnings related to the use of the library."))
   ()
   (:documentation "The OTF usage errors root condition.
 This is the root condition for errors related to the use of the library."))
+
+
+
+
+;; ==========================================================================
+;; Context-Aware Condition Reporting and Handling
+;; ==========================================================================
+
+(defclass condition-context ()
+  ()
+  (:documentation "The Condition Context class.
+This is the base class for classes representing contexts in which
+conditions are signalled."))
+
+(defmacro define-condition-context
+    (name superclasses slots &rest options &aux report defreport)
+  "Like `defclass', but for condition contexts.
+More specifically:
+- the defined class is named NAME-CONDITION-CONTEXT,
+- unless SUPERCLASSES, use `condition-context' as a superclass,
+- OPTIONS are passed on to `defclass', except for :report (see below),
+- the :report option is similar to the one used to define conditions."
+  (setq name (intern (concatenate 'string
+		       (symbol-name name) "-CONDITION-CONTEXT")))
+  (unless superclasses (setq superclasses '(condition-context)))
+  (setq report (cadr (find :report options :key #'car)))
+  (when (stringp report)
+    (setq report `(lambda (condition stream)
+		    (declare (ignore condition))
+		    (write-string ,report stream))))
+  (when report
+    (setq defreport
+	  `(defmethod print-object ((context ,name) stream)
+	     (if *print-escape* (call-next-method) (,report context stream)))))
+  (setq options (remove :report options :key #'car))
+  `(progn
+     (defclass ,name ,superclasses ,slots ,@options)
+     ,defreport))
+
+(defmacro with-condition-context
+    ((condition-type context-type &rest initargs) &body body)
+  "Execute BODY within a particular condition signalling context.
+While BODY is executing, conditions of type CONDITION-TYPE (not evaluated) are
+caught and augmented with an instance of CONTEXT-TYPE-CONDITION-CONTEXT
+initialized with INITARGS."
+  (setq context-type
+	(intern (concatenate 'string
+		  (symbol-name context-type) "-CONDITION-CONTEXT")))
+  `(handler-bind ((,condition-type
+		    (lambda (condition)
+		      (setf (slot-value condition 'contexts)
+			    (push (make-instance ',context-type ,@initargs)
+				  (contexts condition))))))
+     ,@body))
+
+(defmethod print-object :before ((condition otf) stream)
+  "Print CONDITION's contexts to STREAM."
+  (unless *print-escape*
+    (dolist (context (contexts condition))
+      (print-object context stream)
+      (write-string ", " stream))))
+
+
+
+
+;; ==========================================================================
+;; General Purpose Conditions
+;; ==========================================================================
+
+(define-condition invalid-value (otf-compliance-error)
+  ((kind
+    :documentation "The kind of invalid value."
+    :initarg :kind
+    :reader kind)
+   (actual
+    :documentation "The actual value."
+    :initarg :actual
+    :reader actual)
+   (expected
+    :documentation "The expected value."
+    :initarg :expected
+    :reader expected))
+  (:report (lambda (condition stream)
+	     (format stream "invalid ~A value: ~A. Should be ~A."
+	       (kind condition)
+	       (actual condition)
+	       (expected condition))))
+  (:documentation "The Invalid Value compliance error.
+It signals that a provided value in OTF data is invalid."))
 
 
 
@@ -238,36 +249,30 @@ It signal that an OTF tag is ill-formed."))
     :documentation "The byte number in the tag."
     :initarg :byte-number
     :reader byte-number))
+  (:report (lambda (condition stream)
+	     (format stream "invalid byte 0x~X at tag position ~A.~
+			     Should be within the range 0x20 - 0x7E."
+	       (tag-byte condition)
+	       (byte-number condition))))
   (:documentation "The Invalid Tag Byte compliance error.
 It signals that an OTF tag byte is not within the range of printable ASCII
 characters."))
 
-(define-condition-report (condition invalid-tag-byte)
-    "invalid byte 0x~X at tag position ~A.
-Should be within the range 0x20 - 0x7E"
-  (tag-byte condition)
-  (byte-number condition))
-
-
 (define-condition spurious-tag-byte (invalid-tag-byte)
   ()
+  (:report (lambda (condition stream)
+	     (format stream "spurious non-space byte 0x~X at tag position ~A.~
+			     Should be 0x20."
+	       (tag-byte condition)
+	       (byte-number condition))))
   (:documentation "The Spurious Tag Byte compliance error.
 It signals that a non-space OTF tag byte follows a space one."))
 
-(define-condition-report (condition spurious-tag-byte)
-    "spurious non-space byte 0x~X at tag position ~A.
-Should be 0x20"
-  (tag-byte condition)
-  (byte-number condition))
-
-
 (define-condition blank-tag (invalid-tag)
   ()
+  (:report "tag doesn't have any non-space characters.")
   (:documentation "The Blank Tag compliance error.
 It signals that a tag doesn't have any non-space characters."))
-
-(define-condition-report (condition blank-tag)
-    "tag doesn't have any non-space characters")
 
 
 (defun read-tag (&aux bytes)

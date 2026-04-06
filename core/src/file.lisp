@@ -35,21 +35,16 @@
 
 (define-condition invalid-table-records-order (otf-compliance-error)
   ()
+  (:report "invalid table records order. Should be sorted by ascending tag")
   (:documentation "The Invalid Table Records Order compliance error.
 It signals that the entries in the table records array are not ordered by
 ascending tag."))
 
-(define-condition-report (condition invalid-table-records-order)
-    "invalid table records order. Should be sorted by ascending tag")
 
-
-(defclass table-directory-context (context)
+(define-condition-context table-directory ()
   ()
+  (:report "while reading the table directory")
   (:documentation "The Table Directory Context class."))
-
-(defmethod context-string ((context table-directory-context))
-  "Return the Table Directory CONTEXT string."
-  "while reading the table directory")
 
 
 (defun load-stream (font &aux records)
@@ -61,7 +56,7 @@ FIX or CONTINUE.
 
 If the table records are not properly ordered, signal a
 INVALID-TABLE-RECORDS-ORDER continuable error."
-  (with-condition-context (otf table-directory-context)
+  (with-condition-context (otf table-directory)
     (setf (tables-number font) (read-u16))
     (setf (search-range font) (read-u16))
     (let ((expected (* 16 (expt 2 (floor (log (tables-number font) 2))))))
@@ -115,26 +110,25 @@ INVALID-TABLE-RECORDS-ORDER continuable error."
     :documentation "The invalid custom name."
     :initarg :name
     :reader name))
+  (:report (lambda (condition stream)
+	     (format stream "invalid custom name: ~S. ~
+			     Should be a non-empty string."
+	       (name condition))))
   (:documentation "The Invalid Custom Name usage error.
 It signals that a custom name is not a non-empty string."))
-
-(define-condition-report (condition invalid-custom-name)
-    "invalid custom name: ~S. Should be a non-empty string"
-  (name condition))
-
 
 (define-condition invalid-sfnt-version (otf-compliance-error)
   ((sfnt-version
     :documentation "The invalid sfntVersion number."
     :initarg :sfnt-version
     :accessor sfnt-version))
+  (:report (lambda (condition stream)
+	     (format stream "invalid sfntVersion number: 0x~X. ~
+			     Should be one of 0x00010000 (TT), ~
+			     0x4f54544f (CFF), or 0x74746366 (TTCF)."
+	       (sfnt-version condition))))
   (:documentation "The Invalid sfntVersion compliance error.
 It signals that an sfntVersion number is invalid."))
-
-(define-condition-report (condition invalid-sfnt-version)
-    "invalid sfntVersion number: 0x~X. ~
-     Should be one of 0x00010000 (TT), 0x4f54544f (CFF), or 0x74746366 (TTCF)"
-  (sfnt-version condition))
 
 
 (define-constant +file-extensions+
@@ -152,17 +146,17 @@ It signals that an sfntVersion number is invalid."))
     :documentation "The file extension."
     :initarg :extension
     :accessor extension))
+  (:report (lambda (condition stream)
+	     (let ((ext (find (sfnt-version condition) +file-extensions+
+			  :key #'car)))
+	       (format stream "invalid file extension: '~A'. ~
+			       Should be~:[~; one of~]~{ '~A'~}."
+		 (extension condition)
+		 (cddr ext)
+		 (cdr ext)))))
   (:documentation "The Invalid File Extension compliance warning.
 It signals that an OTF file's extension is not compliant with its alleged
 sfntVersion number."))
-
-;; #### FIXME: DEFINE-CONDITION-REPORT should be extended to enable local
-;; variables.
-(define-condition-report (condition invalid-file-extension)
-    "invalid file extension: '~A'. Should be~:[~; one of~]~{ '~A'~}"
-  (extension condition)
-  (cddr (find (sfnt-version condition) +file-extensions+ :key #'car))
-  (cdr (find (sfnt-version condition) +file-extensions+ :key #'car)))
 
 
 (define-condition unsupported-format (otf-warning)
@@ -178,15 +172,23 @@ Possible values include :TT, :CFF, and :TTCF."
     :documentation "The unsupported font's file name."
     :initarg :file
     :reader file))
+  (:report (lambda (condition stream)
+	     (format stream "~A is not supported yet."
+	       (ecase (fmt condition)
+		 (:tt "True Type")
+		 (:cff "Compact Font Format")
+		 (:ttcf "Font Collection")))))
   (:documentation "The Unsupported Format warning.
 It signals that a file contains data in a currently unsupported format."))
 
-(define-condition-report (condition unsupported-format)
-    "~A is not supported yet"
-  (ecase (fmt condition)
-    (:tt "True Type")
-    (:cff "Compact Font Format")
-    (:ttcf "Font Collection")))
+
+(define-condition-context file ()
+  ((file :documentation "The file being read."
+	 :initarg :file :reader file))
+  (:report (lambda (context stream)
+	     (format stream "while reading ~A"
+	       (file-namestring (file context)))))
+  (:documentation "The File condition context."))
 
 
 (defun load-font (file &rest keys &key name &aux font)
@@ -212,24 +214,26 @@ CANCEL-LOADING, in which case this function simply returns NIL."
 	(use-file-base-name () :report "Use the font file's base name."
 	  (setq keys (remove-keys keys :name))))))
   (with-open-file (*stream* file :element-type '(unsigned-byte 8))
-    (with-simple-restart (cancel-loading "Cancel loading.")
-      (let* ((sfnt-version (read-u32))
-	     (extensions (cdr (find sfnt-version +file-extensions+ :key #'car)))
-	     (extension (pathname-type file)))
-	(unless extensions
-	  (error 'invalid-sfnt-version :sfnt-version sfnt-version))
-	(unless (member extension extensions :test #'string=)
-	  (warn 'invalid-file-extension
-	    :sfnt-version sfnt-version :extension extension))
-	(if (= sfnt-version #x74746366)
-	  (warn 'unsupported-format :fmt :ttcf :file file)
-	  (setq font (load-stream
-		      (apply #'make-instance 'font
-			     :file file
-			     :outline-type (ecase sfnt-version
-					     (#x00010000 :tt)
-					     (#x4f54544f :cff))
-			     keys)))))))
+    (with-condition-context (otf file :file file)
+      (with-simple-restart (cancel-loading "Cancel loading.")
+	(let* ((sfnt-version (read-u32))
+	       (extensions (cdr (find sfnt-version +file-extensions+
+				  :key #'car)))
+	       (extension (pathname-type file)))
+	  (unless extensions
+	    (error 'invalid-sfnt-version :sfnt-version sfnt-version))
+	  (unless (member extension extensions :test #'string=)
+	    (warn 'invalid-file-extension
+	      :sfnt-version sfnt-version :extension extension))
+	  (if (= sfnt-version #x74746366)
+	    (warn 'unsupported-format :fmt :ttcf :file file)
+	    (setq font (load-stream
+			(apply #'make-instance 'font
+			       :file file
+			       :outline-type (ecase sfnt-version
+					       (#x00010000 :tt)
+					       (#x4f54544f :cff))
+			       keys))))))))
   font)
 
 ;;; file.lisp ends here

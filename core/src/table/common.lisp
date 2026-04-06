@@ -62,13 +62,11 @@ It is normally a keyword, but may also be an uninterned symbol (see
 ;; Table Commonalities
 ;; ==========================================================================
 
-(defclass table-context (context)
+(define-condition-context table ()
   ((tag :documentation "The table's tag." :initarg :tag :reader tag))
-  (:documentation "The Table Context class."))
-
-(defmethod context-string ((context table-context))
-  "Return the Header Table CONTEXT string."
-  (format nil "while reading the '~A' table" (tag context)))
+  (:report (lambda (context stream)
+	     (format stream "while reading the '~A' table" (tag context))))
+  (:documentation "The Table condition context."))
 
 
 
@@ -81,12 +79,11 @@ It is normally a keyword, but may also be an uninterned symbol (see
   ((tag
     :documentation "The table's tag."
     :initarg :tag :reader tag))
+  (:report (lambda (condition stream)
+	     (format stream "table '~A' is not supported yet."
+	       (tag condition))))
   (:documentation "The Unsupported Table usage warning.
 It signals that an OTF table is unsupported."))
-
-(define-condition-report (condition unsupported-table)
-    "table '~A' is not supported yet" (tag condition))
-
 
 (define-condition spurious-table-byte (otf-compliance-error)
   ((tag
@@ -98,15 +95,15 @@ It signals that an OTF table is unsupported."))
    (start
     :documentation "The next table's start position."
     :initarg :start :reader start))
+  (:report (lambda (condition stream)
+	     (format stream "spurious non-zero byte in table padding, ~
+			     at position ~A, ~
+			     before the start of table '~A' at position ~A."
+	       (spurious-byte-position condition)
+	       (tag condition)
+	       (start condition))))
   (:documentation "The Spurious Table Byte compliance error.
 It signals that a non-zero byte was encountered in a table padding."))
-
-(define-condition-report (condition spurious-table-byte)
-    "spurious non-zero byte in table padding, ~
-     at position ~A, before the start of table '~A' at position ~A"
-  (spurious-byte-position condition)
-  (tag condition)
-  (start condition))
 
 
 (defgeneric read-table (tag record font)
