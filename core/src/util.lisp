@@ -153,8 +153,11 @@ initialized with INITARGS."
 ;; General Purpose Conditions
 ;; ==========================================================================
 
-(define-condition invalid-value (otf-compliance-error)
-  ((kind
+(define-condition unexpected-value (otf-compliance)
+  ((expectation
+    :documentation "The kind of expectation."
+    :allocation :class :initform "unexpected" :reader expectation)
+   (kind
     :documentation "The kind of invalid value."
     :initarg :kind
     :reader kind)
@@ -167,10 +170,21 @@ initialized with INITARGS."
     :initarg :expected
     :reader expected))
   (:report (lambda (condition stream)
-	     (format stream "invalid ~A value: ~A. Should be ~A."
+	     (format stream "~A ~A value: ~A. Should be ~A."
+	       (expectation condition)
 	       (kind condition)
 	       (actual condition)
 	       (expected condition))))
+  (:documentation "The Unexpected Value compliance error.
+It signals that a provided value in OTF data is unexpected."))
+
+(define-condition deprecated-value (unexpected-value otf-compliance-warning)
+  ((expectation :initform "deprecated")) ; slot override
+  (:documentation "The Deprecated Value compliance warning.
+It signals that a provided value in OTF data is deprecated."))
+
+(define-condition invalid-value (unexpected-value otf-compliance-error)
+  ((expectation :initform "invalid")) ; slot override
   (:documentation "The Invalid Value compliance error.
 It signals that a provided value in OTF data is invalid."))
 

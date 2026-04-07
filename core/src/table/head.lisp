@@ -21,6 +21,10 @@
 
 ;;; Commentary:
 
+;; #### TODO: more checks need to be implemented, that extend beyond this
+;; table only. See the bottom of this page:
+;; https://learn.microsoft.com/en-us/typography/opentype/spec/head for
+;; constraints on flags / lsb (left sidebearings) of glyphs in particular.
 
 
 ;;; Code:
@@ -41,7 +45,7 @@
     :initarg :checksum-adjustment :reader checksum-adjustment)
    (magic-number
     :initarg :magic-number :reader magic-number)
-   (flags
+   (flags ;; #### TODO: provide flag bit accessors.
     :initarg :flags :reader flags)
    (units-per-em
     :initarg :units-per-em :reader units-per-em)
@@ -51,6 +55,8 @@
    (bounds
     :documentation "The font's bounds as (xMin yMin xMax yMax)."
     :initarg :bounds :reader bounds)
+   ;; #### TODO: provide flag bit accessors, and check consistency with the
+   ;; fsSelection bits in the OS/2 table.
    (mac-style
     :initarg :mac-style :reader mac-style)
    (lowest-rec-ppem
@@ -99,6 +105,43 @@ immediately restartable with FIX or CONTINUE."
 		      :expected #x5F0F3CF5)
 	(fix () :report "Set to 0x5F0F3CF5."
 	  (setf (slot-value head 'magic-number) #x5F0F3CF5))
+	(continue () :report "Continue anyway.")))
+    (unless (zerop (ldb (byte 5 6) (flags head)))
+      (restart-case (error 'invalid-value
+		      :kind "bits 6-10 in flags"
+		      :actual (flags head)
+		      :expected "cleared")
+	(fix () :report "Clear bits 6-10."
+	  (setf (ldb (byte 5 6) (flags head)) 0))
+	(continue () :report "Continue anyway.")))
+    (unless (zerop (ldb (byte 1 15) (flags head)))
+      (restart-case (error 'invalid-value
+		      :kind "bit 15 in flags"
+		      :actual (flags head)
+		      :expected "cleared")
+	(fix () :report "Clear bit 15."
+	  (setf (ldb (byte 1 15) (flags head)) 0))
+	(continue () :report "Continue anyway.")))
+    (unless (zerop (ldb (byte 9 7) (mac-style head)))
+      (restart-case (error 'invalid-value
+		      :kind "bits 7-15 in macStyle"
+		      :actual (mac-style head)
+		      :expected "cleared")
+	(fix () :report "Clear bits 7-15."
+	  (setf (ldb (byte 9 7) (mac-style head)) 0))
+	(continue () :report "Continue anyway.")))
+    (unless (= (font-direction-hint head) 2)
+      (warn 'deprecated-value
+	:kind "fontDirectionHint"
+	:actual (font-direction-hint head)
+	:expected 2))
+    (unless (zerop (glyph-data-format head))
+      (restart-case (error 'invalid-value
+		      :kind "glyphDataFormat"
+		      :actual (glyph-data-format head)
+		      :expected 0)
+	(fix () :report "Set to 0."
+	  (setf (slot-value head 'glyph-data-format) 0))
 	(continue () :report "Continue anyway."))))
   (setf (slot-value font '|head|) head)
   head)
