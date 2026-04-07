@@ -89,8 +89,16 @@ immediately restartable with FIX or CONTINUE."
 		      :kind "table version"
 		      :actual (table-version head)
 		      :expected '(1 . 0))
+	(continue () :report "Continue anyway.")
 	(fix () :report "Set to 1.0."
-	  (setf (slot-value head 'version) '(1 . 0)))
+	  (setf (slot-value head 'version) '(1 . 0)))))
+    (unless (= (magic-number head) #x5F0F3CF5)
+      (restart-case (error 'invalid-value
+		      :kind "magic number"
+		      :actual (magic-number head)
+		      :expected #x5F0F3CF5)
+	(fix () :report "Set to 0x5F0F3CF5."
+	  (setf (slot-value head 'magic-number) #x5F0F3CF5))
 	(continue () :report "Continue anyway."))))
   (setf (slot-value font '|head|) head)
   head)
