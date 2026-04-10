@@ -112,7 +112,7 @@ immediately restartable with FIX or CONTINUE."
 		      :actual (flags head)
 		      :expected "cleared")
 	(fix () :report "Clear bits 6-10."
-	  (setf (ldb (byte 5 6) (flags head)) 0))
+	  (setf (ldb (byte 5 6) (slot-value head 'flags)) 0))
 	(continue () :report "Continue anyway.")))
     (unless (zerop (ldb (byte 1 15) (flags head)))
       (restart-case (error 'invalid-value
@@ -120,7 +120,7 @@ immediately restartable with FIX or CONTINUE."
 		      :actual (flags head)
 		      :expected "cleared")
 	(fix () :report "Clear bit 15."
-	  (setf (ldb (byte 1 15) (flags head)) 0))
+	  (setf (ldb (byte 1 15) (slot-value head 'flags)) 0))
 	(continue () :report "Continue anyway.")))
     (unless (zerop (ldb (byte 9 7) (mac-style head)))
       (restart-case (error 'invalid-value
@@ -128,7 +128,7 @@ immediately restartable with FIX or CONTINUE."
 		      :actual (mac-style head)
 		      :expected "cleared")
 	(fix () :report "Clear bits 7-15."
-	  (setf (ldb (byte 9 7) (mac-style head)) 0))
+	  (setf (ldb (byte 9 7) (slot-value head 'mac-style)) 0))
 	(continue () :report "Continue anyway.")))
     (unless (= (font-direction-hint head) 2)
       (warn 'deprecated-value
